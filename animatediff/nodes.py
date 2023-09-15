@@ -396,9 +396,16 @@ class AnimateDiffUnload:
 
 
 class AnimateDiffSampler(KSampler):
+    FUNCTION = "animatediff_sample"
     CATEGORY = "Animate Diff"
 
-    def override_ddim_alpha(self, model, steps):
+    def __init__(self) -> None:
+        super().__init__()
+        self.prev_beta = None
+        self.prev_alpha_cumprod = None
+        self.prev_alpha_cumprod_prev = None
+
+    def override_ddim_alpha(self, model):
         logger.info(f"Setting DDIM alpha.")
         device = model_management.unet_offload_device()
 
@@ -407,7 +414,7 @@ class AnimateDiffSampler(KSampler):
         betas = torch.linspace(
             beta_start,
             beta_end,
-            steps,
+            model.num_timesteps,
             dtype=torch.float32,
             device=device,
         )
@@ -435,9 +442,11 @@ class AnimateDiffSampler(KSampler):
         self.prev_alpha_cumprod = None
         self.prev_alpha_cumprod_prev = None
 
-    def sample(self, model, seed, steps, cfg, sampler_name, *args):
-        self.override_ddim_alpha(model.model, steps)
-        results = super().sample(model, seed, steps, cfg, sampler_name, *args)
+    def animatediff_sample(
+        self, model, *args, **kwargs
+    ):
+        self.override_ddim_alpha(model.model)
+        results = super().sample(model, *args, **kwargs)
         self.restore_ddim_alpha(model.model)
         return results
 

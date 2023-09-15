@@ -42,10 +42,10 @@ class MotionModule(nn.Module):
             self.motion_modules = nn.ModuleList([get_motion_module(in_channels, max_len)])
         else:
             self.motion_modules = nn.ModuleList(
-                [get_motion_module(in_channels), get_motion_module(in_channels)]
+                [get_motion_module(in_channels, max_len), get_motion_module(in_channels, max_len)]
             )
             if is_up:
-                self.motion_modules.append(get_motion_module(in_channels))
+                self.motion_modules.append(get_motion_module(in_channels, max_len))
 
 
 def get_motion_module(in_channels, max_len):
