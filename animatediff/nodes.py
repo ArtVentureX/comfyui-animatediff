@@ -386,7 +386,6 @@ class AnimateDiffSampler(KSampler):
             }
         }
         inputs["required"].update(KSampler.INPUT_TYPES()["required"])
-        print(inputs["required"])
         return inputs
 
     FUNCTION = "animatediff_sample"
@@ -441,11 +440,20 @@ class AnimateDiffSampler(KSampler):
 
         logger.info(f"Injecting motion module with method {inject_method}.")
         injectors[inject_method](unet, motion_module)
+        self.override_ddim_alpha(model.model)
+        if not motion_module.is_v2:
+            logger.info(f"Hacking GroupNorm32 forward function.")
+            GroupNorm32.forward = groupnorm32_mm_forward
 
         return model
 
     def eject_motion_module(self, model, inject_method):
         unet = model.model.diffusion_model
+
+        self.restore_ddim_alpha(model.model)
+        if not unet.motion_module.is_v2:
+            logger.info(f"Restore GroupNorm32 forward function.")
+            GroupNorm32.forward = groupnorm32_original_forward
 
         logger.info(f"Ejecting motion module with method {inject_method}.")
         ejectors[inject_method](unet)
@@ -467,10 +475,6 @@ class AnimateDiffSampler(KSampler):
         denoise=1.0,
     ):
         model = self.inject_motion_module(model, motion_module, inject_method)
-        self.override_ddim_alpha(model.model)
-        if not motion_module.is_v2:
-            logger.info(f"Hacking GroupNorm32 forward function.")
-            GroupNorm32.forward = groupnorm32_mm_forward
 
         init_frames = len(latent_image["samples"])
         samples = latent_image["samples"][:init_frames, :, :, :].clone().cpu()
@@ -498,10 +502,6 @@ class AnimateDiffSampler(KSampler):
         )
 
         self.eject_motion_module(model, inject_method)
-        self.restore_ddim_alpha(model.model)
-        if not motion_module.is_v2:
-            logger.info(f"Restore GroupNorm32 forward function.")
-            GroupNorm32.forward = groupnorm32_original_forward
 
         return results
 
