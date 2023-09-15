@@ -79,8 +79,8 @@ def load_motion_module(model_name: str):
         if usefp16:
             logger.info("Using fp16, converting motion module to fp16")
             motion_module.half()
-        offload_device = model_management.unet_offload_device()
-        motion_module = motion_module.to(offload_device)
+        # offload_device = model_management.unet_offload_device()
+        # motion_module = motion_module.to(offload_device)
         motion_module.load_state_dict(mm_state_dict)
         motion_modules[model_hash] = motion_module
 
@@ -88,14 +88,12 @@ def load_motion_module(model_name: str):
 
 
 def inject_motion_module_to_unet_legacy(unet, motion_module: MotionWrapper):
-    logger.info(f"Injecting motion module into UNet input blocks.")
     for mm_idx, unet_idx in enumerate([1, 2, 4, 5, 7, 8, 10, 11]):
         mm_idx0, mm_idx1 = mm_idx // 2, mm_idx % 2
         unet.input_blocks[unet_idx].append(
             motion_module.down_blocks[mm_idx0].motion_modules[mm_idx1]
         )
 
-    logger.info(f"Injecting motion module into UNet output blocks.")
     for unet_idx in range(12):
         mm_idx0, mm_idx1 = unet_idx // 3, unet_idx % 3
         if unet_idx % 2 == 2:
@@ -107,18 +105,15 @@ def inject_motion_module_to_unet_legacy(unet, motion_module: MotionWrapper):
                 motion_module.up_blocks[mm_idx0].motion_modules[mm_idx1]
             )
     if motion_module.is_v2:
-        logger.info(f"Injecting motion module into UNet middle blocks.")
         unet.middle_block.insert(-1, motion_module.mid_block.motion_modules[0])
 
     unet.motion_module = motion_module
 
 
 def eject_motion_module_from_unet_legacy(unet):
-    logger.info(f"Ejecting motion module from UNet input blocks.")
     for unet_idx in [1, 2, 4, 5, 7, 8, 10, 11]:
         unet.input_blocks[unet_idx].pop(-1)
 
-    logger.info(f"Ejecting motion module from UNet output blocks.")
     for unet_idx in range(12):
         if unet_idx % 2 == 2:
             unet.output_blocks[unet_idx].pop(-2)
@@ -126,21 +121,18 @@ def eject_motion_module_from_unet_legacy(unet):
             unet.output_blocks[unet_idx].pop(-1)
 
     if unet.motion_module.is_v2:
-        logger.info(f"Ejecting motion module from UNet middle blocks.")
         unet.middle_block.pop(-2)
 
     del unet.motion_module
 
 
 def inject_motion_module_to_unet(unet, motion_module: MotionWrapper):
-    logger.info(f"Injecting motion module into UNet input blocks.")
     for mm_idx, unet_idx in enumerate([1, 2, 4, 5, 7, 8, 10, 11]):
         mm_idx0, mm_idx1 = mm_idx // 2, mm_idx % 2
         unet.input_blocks[unet_idx].append(
             motion_module.down_blocks[mm_idx0].motion_modules[mm_idx1]
         )
 
-    logger.info(f"Injecting motion module into UNet output blocks.")
     for unet_idx in range(12):
         mm_idx0, mm_idx1 = unet_idx // 3, unet_idx % 3
         if unet_idx % 3 == 2 and unet_idx != 11:
@@ -152,18 +144,15 @@ def inject_motion_module_to_unet(unet, motion_module: MotionWrapper):
                 motion_module.up_blocks[mm_idx0].motion_modules[mm_idx1]
             )
     if motion_module.is_v2:
-        logger.info(f"Injecting motion module into UNet middle blocks.")
         unet.middle_block.insert(-1, motion_module.mid_block.motion_modules[0])
 
     unet.motion_module = motion_module
 
 
 def eject_motion_module_from_unet(unet):
-    logger.info(f"Ejecting motion module from UNet input blocks.")
     for unet_idx in [1, 2, 4, 5, 7, 8, 10, 11]:
         unet.input_blocks[unet_idx].pop(-1)
 
-    logger.info(f"Ejecting motion module from UNet output blocks.")
     for unet_idx in range(12):
         if unet_idx % 3 == 2 and unet_idx != 11:
             unet.output_blocks[unet_idx].pop(-2)
@@ -171,7 +160,6 @@ def eject_motion_module_from_unet(unet):
             unet.output_blocks[unet_idx].pop(-1)
 
     if unet.motion_module.is_v2:
-        logger.info(f"Ejecting motion module from UNet middle blocks.")
         unet.middle_block.pop(-2)
 
     del unet.motion_module
@@ -179,12 +167,12 @@ def eject_motion_module_from_unet(unet):
 
 injectors = {
     "legacy": inject_motion_module_to_unet_legacy,
-    "v1": inject_motion_module_to_unet,
+    "default": inject_motion_module_to_unet,
 }
 
 ejectors = {
     "legacy": eject_motion_module_from_unet_legacy,
-    "v1": eject_motion_module_from_unet,
+    "default": eject_motion_module_from_unet,
 }
 
 
@@ -242,7 +230,6 @@ class AnimateDiffLoaderLegacy:
                 # injected by another motion module, unload first
                 logger.info(f"Ejecting motion module {mm_hash} version {version}.")
                 ejectors[version](unet)
-                GroupNorm32.forward = groupnorm32_original_forward
                 need_inject = True
             else:
                 logger.info(f"Motion module already injected, skipping injection.")
@@ -252,10 +239,6 @@ class AnimateDiffLoaderLegacy:
             injectors[self.version](unet, motion_module)
             unet_hash = calculate_model_hash(unet)
             injected_model_hashs[unet_hash] = (motion_module.mm_hash, self.version)
-
-            if not motion_module.is_v2:
-                logger.info(f"Hacking GroupNorm32 forward function.")
-                GroupNorm32.forward = groupnorm32_mm_forward
 
         if init_latent is None:
             latent = torch.zeros([frame_number, 4, height // 8, width // 8]).cpu()
@@ -268,7 +251,7 @@ class AnimateDiffLoaderLegacy:
         return (model, {"samples": latent})
 
 
-class MotionModuleLoader:
+class AnimateDiffModuleLoader:
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -338,7 +321,6 @@ class AnimateDiffLoader:
                 # injected by another motion module, unload first
                 logger.info(f"Ejecting motion module {mm_type} version {version}.")
                 ejectors[version](unet)
-                GroupNorm32.forward = groupnorm32_original_forward
                 need_inject = True
             else:
                 logger.info(f"Motion module already injected, skipping injection.")
@@ -348,10 +330,6 @@ class AnimateDiffLoader:
             injectors[self.version](unet, motion_module)
             unet_hash = calculate_model_hash(unet)
             injected_model_hashs[unet_hash] = (motion_module.mm_hash, self.version)
-
-            if not motion_module.is_v2:
-                logger.info(f"Hacking GroupNorm32 forward function.")
-                GroupNorm32.forward = groupnorm32_mm_forward
 
         init_frames = len(init_latent["samples"])
         samples = init_latent["samples"][:init_frames, :, :, :].clone().cpu()
@@ -388,7 +366,6 @@ class AnimateDiffUnload:
             (model_name, version) = injected_model_hashs[model_hash]
             logger.info(f"Ejecting motion module {model_name} version {version}.")
             ejectors[version](unet)
-            GroupNorm32.forward = groupnorm32_original_forward
         else:
             logger.info(f"Motion module not injected, skip unloading.")
 
@@ -396,6 +373,22 @@ class AnimateDiffUnload:
 
 
 class AnimateDiffSampler(KSampler):
+    @classmethod
+    def INPUT_TYPES(s):
+        inputs = {
+            "required": {
+                "motion_module": ("MOTION_MODULE",),
+                "inject_method": (["default", "legacy"],),
+                "frame_number": (
+                    "INT",
+                    {"default": 16, "min": 2, "max": 32, "step": 1},
+                ),
+            }
+        }
+        inputs["required"].update(KSampler.INPUT_TYPES()["required"])
+        print(inputs["required"])
+        return inputs
+
     FUNCTION = "animatediff_sample"
     CATEGORY = "Animate Diff"
 
@@ -442,12 +435,74 @@ class AnimateDiffSampler(KSampler):
         self.prev_alpha_cumprod = None
         self.prev_alpha_cumprod_prev = None
 
+    def inject_motion_module(self, model, motion_module, inject_method):
+        model = model.clone()
+        unet = model.model.diffusion_model
+
+        logger.info(f"Injecting motion module with method {inject_method}.")
+        injectors[inject_method](unet, motion_module)
+
+        return model
+
+    def eject_motion_module(self, model, inject_method):
+        unet = model.model.diffusion_model
+
+        logger.info(f"Ejecting motion module with method {inject_method}.")
+        ejectors[inject_method](unet)
+
     def animatediff_sample(
-        self, model, *args, **kwargs
+        self,
+        motion_module,
+        inject_method,
+        frame_number,
+        model,
+        seed,
+        steps,
+        cfg,
+        sampler_name,
+        scheduler,
+        positive,
+        negative,
+        latent_image,
+        denoise=1.0,
     ):
+        model = self.inject_motion_module(model, motion_module, inject_method)
         self.override_ddim_alpha(model.model)
-        results = super().sample(model, *args, **kwargs)
+        if not motion_module.is_v2:
+            logger.info(f"Hacking GroupNorm32 forward function.")
+            GroupNorm32.forward = groupnorm32_mm_forward
+
+        init_frames = len(latent_image["samples"])
+        samples = latent_image["samples"][:init_frames, :, :, :].clone().cpu()
+
+        if init_frames < frame_number:
+            last_frame = samples[-1].unsqueeze(0)
+            repeated_last_frames = last_frame.repeat(
+                frame_number - init_frames, 1, 1, 1
+            )
+            samples = torch.cat((samples, repeated_last_frames), dim=0)
+
+        latent_image = {"samples": samples}
+
+        results = super().sample(
+            model,
+            seed,
+            steps,
+            cfg,
+            sampler_name,
+            scheduler,
+            positive,
+            negative,
+            latent_image,
+            denoise=1.0,
+        )
+
+        self.eject_motion_module(model, inject_method)
         self.restore_ddim_alpha(model.model)
+        if not motion_module.is_v2:
+            logger.info(f"Restore GroupNorm32 forward function.")
+            GroupNorm32.forward = groupnorm32_original_forward
+
         return results
 
 
@@ -548,16 +603,18 @@ class AnimateDiffCombine:
 
 
 NODE_CLASS_MAPPINGS = {
-    "AnimateDiffLoader": AnimateDiffLoaderLegacy,
-    "AnimateDiffLoader_v2": AnimateDiffLoader,
-    "AnimateDiffUnload": AnimateDiffUnload,
+    # "AnimateDiffLoader": AnimateDiffLoaderLegacy,
+    # "AnimateDiffLoader_v2": AnimateDiffLoader,
+    # "AnimateDiffUnload": AnimateDiffUnload,
+    "AnimateDiffModuleLoader": AnimateDiffModuleLoader,
     "AnimateDiffCombine": AnimateDiffCombine,
     "AnimateDiffSampler": AnimateDiffSampler,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "AnimateDiffLoader": "[DEPRECATED] Animate Diff Loader Legacy",
-    "AnimateDiffLoader_v2": "Animate Diff Loader",
-    "AnimateDiffUnload": "Animate Diff Unload",
+    # "AnimateDiffLoader": "[DEPRECATED] Animate Diff Loader Legacy",
+    # "AnimateDiffLoader_v2": "[DEPRECATED] Animate Diff Loader",
+    # "AnimateDiffUnload": "[DEPRECATED] Animate Diff Unload",
+    "AnimateDiffModuleLoader": "Animate Diff Module Loader",
+    "AnimateDiffSampler": "Animate Diff Sampler",
     "AnimateDiffCombine": "Animate Diff Combine",
-    "AnimateDiffSampler": "Animate Diff KSampler",
 }
