@@ -1,12 +1,12 @@
+import os
 import torch
-import torch.nn.functional as F
-from torch import nn
+from torch import Tensor, nn
 
 import math
 from einops import rearrange, repeat
 
-from comfy.ldm.modules.attention import FeedForward
-from .attention_processor import Attention as CrossAttention
+from comfy.utils import load_torch_file
+from comfy.ldm.modules.attention import FeedForward, CrossAttention
 
 
 def zero_module(module):
@@ -15,41 +15,106 @@ def zero_module(module):
         p.detach().zero_()
     return module
 
+
+# Merge from https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved
+def get_encoding_max_len(mm_state_dict: dict[str, Tensor]) -> int:
+    # use pos_encoder.pe entries to determine max length - [1, {max_length}, {320|640|1280}]
+    for key in mm_state_dict.keys():
+        if key.endswith("pos_encoder.pe"):
+            return mm_state_dict[key].size(1)  # get middle dim
+    raise ValueError(f"No pos_encoder.pe found in mm_state_dict")
+
+
+def has_mid_block(mm_state_dict: dict[str, Tensor]):
+    # check if keys contain mid_block
+    for key in mm_state_dict.keys():
+        if key.startswith("mid_block."):
+            return True
+    return False
+
+
 class MotionWrapper(nn.Module):
-    def __init__(self, mm_hash, is_v2 = False):
+    def __init__(self, mm_type: str, encoding_max_len: int = 24, is_v2=False):
         super().__init__()
-        if is_v2:
-            max_len = 32
-        else:
-            max_len = 24
+        self.mm_type = mm_type
+        self.is_v2 = is_v2
 
         self.down_blocks = nn.ModuleList([])
         self.up_blocks = nn.ModuleList([])
+        self.mid_block = None
+
         for c in (320, 640, 1280, 1280):
-            self.down_blocks.append(MotionModule(c, max_len=max_len))
+            self.down_blocks.append(MotionModule(c, encoding_max_len=encoding_max_len))
         for c in (1280, 1280, 640, 320):
-            self.up_blocks.append(MotionModule(c, is_up=True, max_len=max_len))
+            self.up_blocks.append(
+                MotionModule(c, is_up=True, encoding_max_len=encoding_max_len)
+            )
         if is_v2:
-            self.mid_block = MotionModule(1280, max_len=max_len, is_mid=is_v2)
-        self.mm_hash = mm_hash
-        self.is_v2 = is_v2
+            self.mid_block = MotionModule(
+                1280, encoding_max_len=encoding_max_len, is_mid=is_v2
+            )
+
+    @classmethod
+    def from_pretrained(cls, checkpoint_path: str):
+        mm_state_dict = load_torch_file(checkpoint_path)
+        mm_type = os.path.basename(checkpoint_path)
+        encoding_max_len = get_encoding_max_len(mm_state_dict)
+        is_v2 = has_mid_block(mm_state_dict)
+
+        mm = cls(mm_type, encoding_max_len=encoding_max_len, is_v2=is_v2)
+        mm.load_state_dict(mm_state_dict)
+        return mm
+
+    def set_video_length(self, video_length: int):
+        for block in self.down_blocks:
+            block.set_video_length(video_length)
+        for block in self.up_blocks:
+            block.set_video_length(video_length)
+        if self.mid_block is not None:
+            self.mid_block.set_video_length(video_length)
+
+
+class BlockType:
+    UP = "up"
+    DOWN = "down"
+    MID = "mid"
 
 
 class MotionModule(nn.Module):
-    def __init__(self, in_channels, is_up=False, is_mid=False, max_len=24):
+    def __init__(
+        self,
+        in_channels,
+        block_type: BlockType,
+        encoding_max_len=24,
+    ):
         super().__init__()
-        if is_mid:
-            self.motion_modules = nn.ModuleList([get_motion_module(in_channels, max_len)])
+        self.block_type = block_type
+
+        if block_type == BlockType.MID:
+            self.motion_modules = nn.ModuleList(
+                [get_motion_module(in_channels, encoding_max_len)]
+            )
         else:
             self.motion_modules = nn.ModuleList(
-                [get_motion_module(in_channels, max_len), get_motion_module(in_channels, max_len)]
+                [
+                    get_motion_module(in_channels, encoding_max_len),
+                    get_motion_module(in_channels, encoding_max_len),
+                ]
             )
-            if is_up:
-                self.motion_modules.append(get_motion_module(in_channels, max_len))
+            if block_type == BlockType.UP:
+                self.motion_modules.append(
+                    get_motion_module(in_channels, encoding_max_len)
+                )
+
+    def set_video_length(self, video_length: int):
+        for motion_module in self.motion_modules:
+            motion_module.set_video_length(video_length)
 
 
 def get_motion_module(in_channels, max_len):
-    return VanillaTemporalModule(in_channels=in_channels, temporal_position_encoding_max_len=max_len)
+    return VanillaTemporalModule(
+        in_channels=in_channels, temporal_position_encoding_max_len=max_len
+    )
 
 
 class VanillaTemporalModule(nn.Module):
@@ -85,8 +150,13 @@ class VanillaTemporalModule(nn.Module):
                 self.temporal_transformer.proj_out
             )
 
+    def set_video_length(self, video_length: int):
+        self.temporal_transformer.set_video_length(video_length)
+
     def forward(self, input_tensor, encoder_hidden_states, attention_mask=None):
-        return self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask)
+        return self.temporal_transformer(
+            input_tensor, encoder_hidden_states, attention_mask
+        )
 
 
 class TemporalTransformer3DModel(nn.Module):
@@ -140,10 +210,12 @@ class TemporalTransformer3DModel(nn.Module):
             ]
         )
         self.proj_out = nn.Linear(inner_dim, in_channels)
+        self.video_length = 16
+
+    def set_video_length(self, video_length: int):
+        self.video_length = video_length
 
     def forward(self, hidden_states, encoder_hidden_states=None, attention_mask=None):
-        video_length = hidden_states.shape[0] // 2 # TODO: config this value in scripts
-
         batch, channel, height, weight = hidden_states.shape
         residual = hidden_states
 
@@ -159,7 +231,7 @@ class TemporalTransformer3DModel(nn.Module):
             hidden_states = block(
                 hidden_states,
                 encoder_hidden_states=encoder_hidden_states,
-                video_length=video_length,
+                video_length=self.video_length,
             )
 
         # output
@@ -204,15 +276,15 @@ class TemporalTransformerBlock(nn.Module):
             attention_blocks.append(
                 VersatileAttention(
                     attention_mode=block_name.split("_")[0],
-                    cross_attention_dim=cross_attention_dim
+                    context_dim=cross_attention_dim
                     if block_name.endswith("_Cross")
                     else None,
                     query_dim=dim,
                     heads=num_attention_heads,
                     dim_head=attention_head_dim,
                     dropout=dropout,
-                    bias=attention_bias,
-                    upcast_attention=upcast_attention,
+                    # bias=attention_bias, # remove for Comfy CrossAttention
+                    # upcast_attention=upcast_attention, # remove for Comfy CrossAttention
                     cross_frame_attention_mode=cross_frame_attention_mode,
                     temporal_position_encoding=temporal_position_encoding,
                     temporal_position_encoding_max_len=temporal_position_encoding_max_len,
@@ -284,7 +356,7 @@ class VersatileAttention(CrossAttention):
         assert attention_mode == "Temporal"
 
         self.attention_mode = attention_mode
-        self.is_cross_attention = kwargs["cross_attention_dim"] is not None
+        self.is_cross_attention = kwargs["context_dim"] is not None
 
         self.pos_encoder = (
             PositionalEncoding(
@@ -327,8 +399,8 @@ class VersatileAttention(CrossAttention):
         hidden_states = super().forward(
             hidden_states,
             encoder_hidden_states,
-            attention_mask,
-            **cross_attention_kwargs,
+            value=None,
+            mask=attention_mask,
         )
 
         hidden_states = rearrange(hidden_states, "(b d) f c -> (b f) d c", d=d)
