@@ -24,6 +24,9 @@
 
 <img width="1311" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/b7164539-bc58-4ef9-b178-d914e833805e">
 
+
+Workflow file: https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflow.json
+
 ## Samples
 
 ![23b44c29-29e8-4f48-ab3c-4df87c90c13f](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/97efb96f-3d3d-4976-8789-78b88f89b2eb)
@@ -34,21 +37,6 @@
 
 ### GIF split into multiple scenes
 
-<<<<<<< Updated upstream
-![AnimateDiff_00002](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/c78d64b9-b308-41ec-9804-bbde654d0b47)
-
-## Known Issues
-
-### GIF split into multiple scenes
-
-![AnimateDiff_00007_](https://github.com/ArtVentureX/comfyui-animatediff/assets/8894763/e6cd53cb-9878-45da-a58a-a15851882386)
-
-This is usually due to memory (VRAM) is not enough to process the whole image batch at the same time. Try reduce the image size and frame number.
-
-### GIF has Wartermark after update to the latest version
-
-See https://github.com/continue-revolution/sd-webui-animatediff/issues/31
-=======
 ![AnimateDiff_00007_](https://github.com/ArtVentureX/comfyui-animatediff/assets/8894763/e6cd53cb-9878-45da-a58a-a15851882386)
 
 See: https://github.com/continue-revolution/sd-webui-animatediff/issues/38
@@ -68,7 +56,6 @@ Work around:
 ### GIF has Wartermark after update to the latest version
 
 See: https://github.com/continue-revolution/sd-webui-animatediff/issues/31
->>>>>>> Stashed changes
 
 As mentioned in the issue thread, it seems to be due to the training dataset. The new version is the correct implementation and produces smoother GIFs compared to the older version.
 
@@ -87,11 +74,4 @@ As mentioned in the issue thread, it seems to be due to the training dataset. Th
     </tr>
 </table>
 
-<<<<<<< Updated upstream
-
-I played around with both version and found that the watermark only present in some models, not always. So I've brought back the old method and also created a new node with the new method. You can try both to find the best fit for each model.
-
-![Screenshot 2023-07-28 at 18 14 14](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/25cf6092-3e67-435e-86cc-43614ca7d6aa)
-=======
 I played around with both version and found that the watermark only present in some models, not always. To use the **old (legacy)** method, change `injection_method` to `legacy` in the `AnimateDiffSampler` node.
->>>>>>> Stashed changes
