@@ -44,14 +44,16 @@ class MotionWrapper(nn.Module):
         self.mid_block = None
 
         for c in (320, 640, 1280, 1280):
-            self.down_blocks.append(MotionModule(c, encoding_max_len=encoding_max_len))
+            self.down_blocks.append(
+                MotionModule(c, BlockType.DOWN, encoding_max_len=encoding_max_len)
+            )
         for c in (1280, 1280, 640, 320):
             self.up_blocks.append(
-                MotionModule(c, is_up=True, encoding_max_len=encoding_max_len)
+                MotionModule(c, BlockType.UP, encoding_max_len=encoding_max_len)
             )
         if is_v2:
             self.mid_block = MotionModule(
-                1280, encoding_max_len=encoding_max_len, is_mid=is_v2
+                1280, BlockType.MID, encoding_max_len=encoding_max_len
             )
 
     @classmethod
