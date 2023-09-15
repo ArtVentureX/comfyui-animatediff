@@ -334,6 +334,9 @@ class AnimateDiffCombine:
                 "save_image": (["Enabled", "Disabled"],),
                 "filename_prefix": ("STRING", {"default": "AnimateDiff"}),
             },
+            "optional": {
+                "pingpong": (["Disabled", "Enabled"],),
+            },
             "hidden": {
                 "prompt": "PROMPT",
                 "extra_pnginfo": "EXTRA_PNGINFO",
@@ -352,6 +355,7 @@ class AnimateDiffCombine:
         loop_count: int,
         save_image="Enabled",
         filename_prefix="AnimateDiff",
+        pingpong="Disabled",
         prompt=None,
         extra_pnginfo=None,
     ):
@@ -392,6 +396,10 @@ class AnimateDiffCombine:
             compress_level=4,
         )
 
+        # make revert gif
+        if pingpong == "Enabled":
+            pil_images = pil_images + pil_images[-2:0:-1]
+
         # save gif
         file = f"{filename}_{counter:05}_.gif"
         file_path = os.path.join(full_output_folder, file)
@@ -413,7 +421,7 @@ class AnimateDiffCombine:
                 "type": "output" if save_image == "Enabled" else "temp",
             }
         ]
-        return {"ui": {"images": previews}}
+        return {"ui": {"gif": previews}}
 
 
 NODE_CLASS_MAPPINGS = {
