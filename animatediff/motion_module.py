@@ -5,7 +5,6 @@ from torch import Tensor, nn
 import math
 from einops import rearrange, repeat
 
-from comfy.utils import load_torch_file
 from comfy.ldm.modules.attention import FeedForward, CrossAttention
 
 
@@ -57,9 +56,7 @@ class MotionWrapper(nn.Module):
             )
 
     @classmethod
-    def from_pretrained(cls, checkpoint_path: str):
-        mm_state_dict = load_torch_file(checkpoint_path)
-        mm_type = os.path.basename(checkpoint_path)
+    def from_pretrained(cls, mm_state_dict: dict[str, Tensor], mm_type: str):
         encoding_max_len = get_encoding_max_len(mm_state_dict)
         is_v2 = has_mid_block(mm_state_dict)
 

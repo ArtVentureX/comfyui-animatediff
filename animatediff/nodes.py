@@ -15,6 +15,7 @@ import comfy.model_management as model_management
 from comfy.model_base import BaseModel
 from comfy.ldm.modules.attention import SpatialTransformer
 from comfy.cli_args import args as cli_args
+from comfy.utils import load_torch_file, calculate_parameters
 from nodes import KSampler
 
 from .logger import logger
@@ -67,8 +68,11 @@ def load_motion_module(model_name: str):
     model_hash = get_model_hash(model_path)
     if model_hash not in motion_modules:
         logger.info(f"Loading motion module {model_name}")
-        motion_module = MotionWrapper.from_pretrained(model_path)
-        if not cli_args.force_fp32:
+        mm_state_dict = load_torch_file(model_path)
+        motion_module = MotionWrapper.from_pretrained(mm_state_dict, model_name)
+
+        params = calculate_parameters(mm_state_dict, "")
+        if model_management.should_use_fp16(model_params=params):
             logger.info(f"Converting motion module to fp16.")
             motion_module.half()
 
@@ -245,6 +249,7 @@ class AnimateDiffSampler(KSampler):
         unet = model.model.diffusion_model
 
         logger.info(f"Injecting motion module with method {inject_method}.")
+        motion_module.set_video_length(frame_number)
         injectors[inject_method](unet, motion_module)
         self.override_beta_schedule(model.model)
         if not motion_module.is_v2:
@@ -258,7 +263,7 @@ class AnimateDiffSampler(KSampler):
 
         self.restore_beta_schedule(model.model)
         if not unet.motion_module.is_v2:
-            logger.info(f"Restore GroupNorm32 forward function.")
+            logger.info(f"Restore GroupNorm.forward function.")
             torch.nn.GroupNorm.forward = orig_groupnorm_forward
 
         logger.info(f"Ejecting motion module with method {inject_method}.")
