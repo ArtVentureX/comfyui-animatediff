@@ -14,7 +14,6 @@ import comfy.ldm.modules.diffusionmodules.openaimodel as openaimodel
 import comfy.model_management as model_management
 from comfy.model_base import BaseModel
 from comfy.ldm.modules.attention import SpatialTransformer
-from comfy.cli_args import args as cli_args
 from comfy.utils import load_torch_file, calculate_parameters
 from nodes import KSampler
 
@@ -75,6 +74,8 @@ def load_motion_module(model_name: str):
         if model_management.should_use_fp16(model_params=params):
             logger.info(f"Converting motion module to fp16.")
             motion_module.half()
+        offload_device = model_management.unet_offload_device()
+        motion_module = motion_module.to(offload_device)
 
         motion_modules[model_hash] = motion_module
 
@@ -219,7 +220,7 @@ class AnimateDiffSampler(KSampler):
 
     def override_beta_schedule(self, model: BaseModel):
         logger.info(f"Override beta schedule.")
-        self.prev_beta = model.get_buffer("betas")
+        self.prev_beta = model.get_buffer("betas").cpu().clone()
         self.prev_linear_start = model.linear_start
         self.prev_linear_end = model.linear_end
         model.register_schedule(
@@ -331,11 +332,10 @@ class AnimateDiffCombine:
                     {"default": 8, "min": 1, "max": 24, "step": 1},
                 ),
                 "loop_count": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
-                "save_image": (["Enabled", "Disabled"],),
-                "filename_prefix": ("STRING", {"default": "AnimateDiff"}),
-            },
-            "optional": {
-                "pingpong": (["Disabled", "Enabled"],),
+                "save_image": ([True, False],),
+                "filename_prefix": ("STRING", {"default": "animate_diff"}),
+                "format": (["image/gif", "image/webp", "video/webm"],),
+                "pingpong": ([False, True],),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -343,7 +343,7 @@ class AnimateDiffCombine:
             },
         }
 
-    RETURN_TYPES = ()
+    RETURN_TYPES = ("GIF",)
     OUTPUT_NODE = True
     CATEGORY = "Animate Diff"
     FUNCTION = "generate_gif"
@@ -353,23 +353,24 @@ class AnimateDiffCombine:
         images,
         frame_rate: int,
         loop_count: int,
-        save_image="Enabled",
+        save_image=True,
         filename_prefix="AnimateDiff",
-        pingpong="Disabled",
+        format="image/gif",
+        pingpong=False,
         prompt=None,
         extra_pnginfo=None,
     ):
         # convert images to numpy
-        pil_images: List[Image.Image] = []
+        frames: List[Image.Image] = []
         for image in images:
             img = 255.0 * image.cpu().numpy()
             img = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8))
-            pil_images.append(img)
+            frames.append(img)
 
         # save image
         output_dir = (
             folder_paths.get_output_directory()
-            if save_image == "Enabled"
+            if save_image
             else folder_paths.get_temp_directory()
         )
         (
@@ -390,38 +391,54 @@ class AnimateDiffCombine:
         # save first frame as png to keep metadata
         file = f"{filename}_{counter:05}_.png"
         file_path = os.path.join(full_output_folder, file)
-        pil_images[0].save(
+        frames[0].save(
             file_path,
             pnginfo=metadata,
             compress_level=4,
         )
-
-        # make revert gif
-        if pingpong == "Enabled":
-            pil_images = pil_images + pil_images[-2:0:-1]
+        if pingpong:
+            frames = frames + frames[-2:0:-1]
 
         # save gif
-        file = f"{filename}_{counter:05}_.gif"
+        format_type, format_ext = format.split("/")
+        file = f"{filename}_{counter:05}_.{format_ext}"
         file_path = os.path.join(full_output_folder, file)
-        pil_images[0].save(
-            file_path,
-            save_all=True,
-            append_images=pil_images[1:],
-            duration=round(1000 / frame_rate),
-            loop=loop_count,
-            compress_level=4,
-        )
 
-        print("Saved gif to", file_path, os.path.exists(file_path))
+        if format_type == "image":
+            frames[0].save(
+                file_path,
+                format=format_ext.upper(),
+                save_all=True,
+                append_images=frames[1:],
+                duration=round(1000 / frame_rate),
+                loop=loop_count,
+                compress_level=4,
+            )
+        else:
+            # save webm
+            import shutil
+            import subprocess
+
+            ffmpeg_path = shutil.which("ffmpeg")
+            if ffmpeg_path is None:
+                raise ProcessLookupError("Could not find ffmpeg")
+            dimensions = f"{frames[0].width}x{frames[0].height}"
+            args = [ffmpeg_path, "-v", "panic", "-n", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s",
+                    dimensions, "-r", str(frame_rate), "-i", "-", "-pix_fmt", "yuv420p", file_path]
+
+            with subprocess.Popen(args, stdin=subprocess.PIPE) as proc:
+                for frame in frames:
+                    proc.stdin.write(frame.tobytes())
 
         previews = [
             {
                 "filename": file,
                 "subfolder": subfolder,
-                "type": "output" if save_image == "Enabled" else "temp",
+                "type": "output" if save_image else "temp",
+                "format": format,
             }
         ]
-        return {"ui": {"gif": previews}}
+        return {"ui": {"gifs": previews}}
 
 
 NODE_CLASS_MAPPINGS = {

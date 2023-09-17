@@ -1,5 +1,3 @@
-// From https://github.com/kijai/ComfyUI-AnimateDiff-Evolved
-
 import { app } from '../../../scripts/app.js'
 import { api } from '../../../scripts/api.js'
 
@@ -19,16 +17,16 @@ function offsetDOMWidget(
       elRect.height / ctx.canvas.height
     )
     .multiplySelf(ctx.getTransform())
-    .translateSelf(margin, margin + widgetY)
+    .translateSelf(0, widgetY + margin)
 
   const scale = new DOMMatrix().scaleSelf(transform.a, transform.d)
   Object.assign(widget.inputEl.style, {
     transformOrigin: '0 0',
     transform: scale,
-    left: `${transform.a + transform.e}px`,
+    left: `${transform.e}px`,
     top: `${transform.d + transform.f}px`,
-    width: `${widgetWidth - margin * 2}px`,
-    height: `${(height || widget.parent?.inputHeight || 32) - margin * 2}px`,
+    width: `${widgetWidth}px`,
+    height: `${(height || widget.parent?.inputHeight || 32) - margin}px`,
     position: 'absolute',
     background: !node.color ? '' : node.color,
     color: !node.color ? '' : 'white',
@@ -60,21 +58,21 @@ export const cleanupNode = (node) => {
   }
 }
 
-const DEBUG_IMG = (name, val) => {
+const CreatePreviewElement = (name, val, format) => {
+  const [type] = format.split('/')
+
   const w = {
     name,
-    type: 'image',
+    type,
     value: val,
     draw: function (ctx, node, widgetWidth, widgetY, height) {
       const [cw, ch] = this.computeSize(widgetWidth)
       offsetDOMWidget(this, ctx, node, widgetWidth, widgetY, ch)
     },
-    computeSize: function (width) {
+    computeSize: function (_) {
       const ratio = this.inputRatio || 1
-      if (width) {
-        return [width, width / ratio + 4]
-      }
-      return [128, 128]
+      const width = Math.max(220, this.parent.size[0])
+      return [width, (width / ratio + 10)]
     },
     onRemoved: function () {
       if (this.inputEl) {
@@ -83,8 +81,14 @@ const DEBUG_IMG = (name, val) => {
     },
   }
 
-  w.inputEl = document.createElement('img')
+  w.inputEl = document.createElement(type === 'video' ? 'video' : 'img')
   w.inputEl.src = w.value
+  if (type === 'video') {
+    w.inputEl.setAttribute('type', 'video/webm');
+    w.inputEl.autoplay = true
+    w.inputEl.loop = true
+    w.inputEl.controls = false;
+  }
   w.inputEl.onload = function () {
     w.inputRatio = w.inputEl.naturalWidth / w.inputEl.naturalHeight
   }
@@ -93,13 +97,13 @@ const DEBUG_IMG = (name, val) => {
 }
 
 const gif_preview = {
-  name: 'ad_gif_preview',
+  name: 'AnimateDiff.gif_preview',
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
     switch (nodeData.name) {
       case 'AnimateDiffCombine': {
         const onExecuted = nodeType.prototype.onExecuted
         nodeType.prototype.onExecuted = function (message) {
-          const prefix = 'anything_'
+          const prefix = 'ad_gif_preview_'
           const r = onExecuted ? onExecuted.apply(this, message) : undefined
 
           if (this.widgets) {
@@ -110,37 +114,29 @@ const gif_preview = {
               }
               this.widgets.length = pos
             }
-
-            let imgURLs = []
-            if (message) {
-              if (message.gif) {
-                console.log("found gif")
-                imgURLs = imgURLs.concat(
-                  message.gif.map((params) => {
-                    return api.apiURL(
-                      '/view?' + new URLSearchParams(params).toString()
-                    )
-                  })
+            if (message?.gifs) {
+              message.gifs.forEach((params, i) => {
+                const previewUrl = api.apiURL(
+                  '/view?' + new URLSearchParams(params).toString()
                 )
-              }
-              let i = 0
-              for (const img of imgURLs) {
                 const w = this.addCustomWidget(
-                  DEBUG_IMG(`${prefix}_${i}`, img)
+                  CreatePreviewElement(`${prefix}_${i}`, previewUrl, params.format || 'image/gif')
                 )
                 w.parent = this
-                i++
-              }
+              })
             }
+
             const onRemoved = this.onRemoved
             this.onRemoved = () => {
               cleanupNode(this)
               return onRemoved?.()
             }
           }
+
+          // keep width and update height
+          this.setSize([this.size[0], this.computeSize([this.size[0], this.size[1]])[1]])
           return r
         }
-
         break
       }
     }
