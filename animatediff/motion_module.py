@@ -61,7 +61,7 @@ class MotionWrapper(nn.Module):
         is_v2 = has_mid_block(mm_state_dict)
 
         mm = cls(mm_type, encoding_max_len=encoding_max_len, is_v2=is_v2)
-        mm.load_state_dict(mm_state_dict)
+        mm.load_state_dict(mm_state_dict, strict=False)
         return mm
 
     def set_video_length(self, video_length: int):
