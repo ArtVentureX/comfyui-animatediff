@@ -6,9 +6,10 @@
 
 1. Clone this repo into `custom_nodes` folder.
 2. Download motion modules and put them under `comfyui-animatediff/models/`.
-  * Original modules: [Google Drive](https://drive.google.com/drive/folders/1EqLC65eR1-W-sGD0Im7fkED6c8GkiNFI) | [HuggingFace](https://huggingface.co/guoyww/animatediff) | [CivitAI](https://civitai.com/models/108836) | [Baidu NetDisk](https://pan.baidu.com/s/18ZpcSM6poBqxWNHtnyMcxg?pwd=et8y)
-  * Community modules: [manshoety/AD_Stabilized_Motion](https://huggingface.co/manshoety/AD_Stabilized_Motion) | [CiaraRowles/TemporalDiff](https://huggingface.co/CiaraRowles/TemporalDiff)
-  * AnimateDiff v2 [mm_sd_v15_v2.ckpt](https://huggingface.co/guoyww/animatediff/blob/main/mm_sd_v15_v2.ckpt)
+
+- Original modules: [Google Drive](https://drive.google.com/drive/folders/1EqLC65eR1-W-sGD0Im7fkED6c8GkiNFI) | [HuggingFace](https://huggingface.co/guoyww/animatediff) | [CivitAI](https://civitai.com/models/108836) | [Baidu NetDisk](https://pan.baidu.com/s/18ZpcSM6poBqxWNHtnyMcxg?pwd=et8y)
+- Community modules: [manshoety/AD_Stabilized_Motion](https://huggingface.co/manshoety/AD_Stabilized_Motion) | [CiaraRowles/TemporalDiff](https://huggingface.co/CiaraRowles/TemporalDiff)
+- AnimateDiff v2 [mm_sd_v15_v2.ckpt](https://huggingface.co/guoyww/animatediff/blob/main/mm_sd_v15_v2.ckpt)
 
 ## Nodes
 
@@ -17,6 +18,7 @@
 <img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/9d756d01-ea45-4d1c-8e48-56f2725c7ca1">
 
 #### AnimateDiffSampler
+
 - Mostly the same with `KSampler`
 - Use `AnimateDiffLoader` to load the motion module
 - `inject_method`: should left default
@@ -26,6 +28,7 @@
 <img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/f22d6b36-ce36-44cc-80e8-dffe6f77b296">
 
 #### AnimateDiffCombine
+
 - Combine GIF frames and produce the GIF image
 - `frame_rate`: number of frame per second
 - `loop_count`: use 0 for infinite loop
@@ -34,18 +37,65 @@
 
 <img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/381c5acc-06ef-43da-ada0-3dc76f37a3e4">
 
-#### Example Workflow
+## Workflows
 
-<img width="1311" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/b7164539-bc58-4ef9-b178-d914e833805e">
+### Simple txt2gif
 
+<img width="1280" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/b7164539-bc58-4ef9-b178-d914e833805e">
 
-Workflow file: https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflow.json
+Workflow: [simple.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/simple.json)
 
-## Samples
+Samples:
 
-![23b44c29-29e8-4f48-ab3c-4df87c90c13f](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/97efb96f-3d3d-4976-8789-78b88f89b2eb)
+![animate_diff_01](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/97efb96f-3d3d-4976-8789-78b88f89b2eb)
 
-![25f6c60c-f8ac-4abe-984f-1559c355d7f6](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/c39b26f7-a2af-4dc4-902f-c363e2e6f39a)
+![animate_diff_02](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/c39b26f7-a2af-4dc4-902f-c363e2e6f39a)
+
+### Latent upscale
+
+Upscale latent output using `LatentUpscale` then do a 2nd pass with `AnimateDiffSampler`.
+
+<img width="1280" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/987a1c5a-c1f8-4b24-8c62-f14496261d6c">
+
+Workflow: [latent-upscale.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/latent-upscale.json)
+
+Samples:
+![animate_diff_upscale](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/f363f6f8-3117-4fa8-bca9-62f6a6e38ce7)
+
+### Using with ControlNet
+
+You will need following additional nodes:
+- [Kosinkadink/ComfyUI-Advanced-ControlNet](https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet): Apply different weight for each latent in batch
+- [Fannovel16/comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux): ControlNet preprocessors
+
+#### Animate with starting and ending images
+
+- Use `LatentKeyframe` and `TimestampKeyframe` from [ComfyUI-Advanced-ControlNet](https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet) to apply diffrent weights for each latent index.
+- Use 2 controlnet modules for two images with weights reverted.
+
+![image](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/bcca1070-e4a1-4698-a2af-aadf9723d015)
+
+Workflow: [cn-2images.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/cn-2images.json)
+
+Samples:
+<table>
+<tr>
+<td>
+<img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/e73fc3cd-a590-40a9-8b33-11358b54f0cd">
+</td>
+<td>
+<img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/96c2ee92-d457-4862-94d3-d675b7fa2d1f">
+</td>
+</tr>
+<tr>
+<td>
+<img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/46338853-1ae0-433e-925c-2a41e0382e68">
+</td>
+<td>
+<img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/707e4ce3-3594-4ff5-9a5f-f9596eb2bcf4">
+</td>
+</tr>
+</table>
 
 ## Known Issues
 
