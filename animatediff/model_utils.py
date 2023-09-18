@@ -11,6 +11,12 @@ folder_paths.folder_names_and_paths["AnimateDiff"] = (
     ],
     folder_paths.supported_pt_extensions,
 )
+folder_paths.folder_names_and_paths["video_formats"] = (
+    [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "video_formats"),
+    ],
+    [".json"]
+)
 
 
 def get_available_models():
