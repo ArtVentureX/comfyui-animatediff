@@ -2,10 +2,11 @@ import os
 import json
 import torch
 import numpy as np
+import hashlib
 from typing import Dict, List
 from torch import Tensor
 from torch.nn.functional import group_norm
-from PIL import Image
+from PIL import Image, ImageSequence
 from PIL.PngImagePlugin import PngInfo
 from einops import rearrange
 
@@ -20,6 +21,7 @@ from nodes import KSampler
 from .logger import logger
 from .motion_module import MotionWrapper, VanillaTemporalModule
 from .model_utils import get_available_models, get_model_path, get_model_hash
+from .utils import pil2tensor
 
 
 def forward_timestep_embed(
@@ -47,7 +49,8 @@ def groupnorm_mm_factory(video_length: int):
         axes_factor = input.size(0) // video_length
 
         input = rearrange(input, "(b f) c h w -> b c f h w", b=axes_factor)
-        input = group_norm(input, self.num_groups, self.weight, self.bias, self.eps)
+        input = group_norm(input, self.num_groups,
+                           self.weight, self.bias, self.eps)
         input = rearrange(input, "b c f h w -> (b f) c h w", b=axes_factor)
         return input
 
@@ -68,7 +71,8 @@ def load_motion_module(model_name: str):
     if model_hash not in motion_modules:
         logger.info(f"Loading motion module {model_name}")
         mm_state_dict = load_torch_file(model_path)
-        motion_module = MotionWrapper.from_pretrained(mm_state_dict, model_name)
+        motion_module = MotionWrapper.from_pretrained(
+            mm_state_dict, model_name)
 
         params = calculate_parameters(mm_state_dict, "")
         if model_management.should_use_fp16(model_params=params):
@@ -344,7 +348,7 @@ class AnimateDiffCombine:
             },
         }
 
-    RETURN_TYPES = ("GIF",)
+    RETURN_TYPES = ()
     OUTPUT_NODE = True
     CATEGORY = "Animate Diff"
     FUNCTION = "generate_gif"
@@ -422,7 +426,8 @@ class AnimateDiffCombine:
             ffmpeg_path = shutil.which("ffmpeg")
             if ffmpeg_path is None:
                 raise ProcessLookupError("Could not find ffmpeg")
-            video_format_path = folder_paths.get_full_path("video_formats", format_ext + ".json")
+            video_format_path = folder_paths.get_full_path(
+                "video_formats", format_ext + ".json")
             with open(video_format_path, 'r') as stream:
                 video_format = json.load(stream)
             file = f"{filename}_{counter:05}_.{video_format['extension']}"
@@ -430,9 +435,9 @@ class AnimateDiffCombine:
             dimensions = f"{frames[0].width}x{frames[0].height}"
             args = [ffmpeg_path, "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
                     "-s", dimensions, "-r", str(frame_rate), "-i", "-"] \
-                    + video_format['main_pass'] + [file_path]
+                + video_format['main_pass'] + [file_path]
 
-            env=os.environ
+            env = os.environ
             if "environment" in video_format:
                 env.update(video_format["environment"])
             with subprocess.Popen(args, stdin=subprocess.PIPE, env=env) as proc:
@@ -447,16 +452,162 @@ class AnimateDiffCombine:
                 "format": format,
             }
         ]
-        return {"ui": {"gifs": previews}}
+        return {"ui": {"videos": previews}}
+
+
+class LoadVideo:
+    @classmethod
+    def INPUT_TYPES(s):
+        input_dir = os.path.join(folder_paths.get_input_directory(), "video")
+        if not os.path.exists(input_dir):
+            os.makedirs(input_dir, exist_ok=True)
+
+        files = [f"video/{f}" for f in os.listdir(input_dir) if os.path.isfile(
+            os.path.join(input_dir, f))]
+
+        return {
+            "required": {
+                "video": (sorted(files), {"video_upload": True}),
+            },
+            "optional": {
+                "frame_start": ("INT", {"default": 0, "min": 0, "max": 0xffffffff, "step": 1}),
+                "frame_limit": ("INT", {"default": 16, "min": 1, "max": 10240, "step": 1}),
+            }
+        }
+
+    CATEGORY = "Animate Diff/Utils"
+    RETURN_TYPES = ("IMAGE", "INT")
+    RETURN_NAMES = ("frames", "frame_count")
+    FUNCTION = "load"
+
+    def load_gif(self, gif_path: str, frame_start: int, frame_limit: int):
+        image = Image.open(gif_path)
+        frames = []
+
+        for i, frame in enumerate(ImageSequence.Iterator(image)):
+            if i < frame_start:
+                continue
+            elif i >= frame_start + frame_limit:
+                break
+            else:
+                frames.append(pil2tensor(frame.copy().convert("RGB")))
+
+        return frames
+
+    def load_video(self, video_path, frame_start: int, frame_limit: int):
+        import cv2
+
+        video = cv2.VideoCapture(video_path)
+        video.set(cv2.CAP_PROP_POS_FRAMES, frame_start)
+
+        frames = []
+        for i in range(frame_limit):
+            # Read the next frame
+            ret, frame = video.read()
+            if ret:
+                # Convert the frame to RGB (OpenCV uses BGR)
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # Convert the NumPy array to a PIL image and append to list
+                frames.append(pil2tensor(Image.fromarray(frame)))
+            else:
+                break
+
+        video.release()
+
+        return frames
+
+    def load(self, video: str, frame_start=0, frame_limit=16):
+        print("path", video)
+        video_path = folder_paths.get_annotated_filepath(video)
+        (_, ext) = os.path.splitext(video_path)
+
+        if ext.lower() in {".gif", ".webp"}:
+            frames = self.load_gif(video_path, frame_start, frame_limit)
+        elif ext.lower() in {".webp", ".mp4", ".mov", ".avi"}:
+            frames = self.load_video(video_path, frame_start, frame_limit)
+        else:
+            raise ValueError(f"Unsupported video format: {ext}")
+
+        return (torch.cat(frames, dim=0),)
+
+    @classmethod
+    def IS_CHANGED(s, image, *args, **kwargs):
+        image_path = folder_paths.get_annotated_filepath(image)
+        m = hashlib.sha256()
+        with open(image_path, 'rb') as f:
+            m.update(f.read())
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(s, video, *args, **kwargs):
+        if not folder_paths.exists_annotated_filepath(video):
+            return "Invalid video file: {}".format(video)
+
+        return True
+
+
+class ImageSizeAndBatchSize:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+            },
+        }
+
+    CATEGORY = "Animate Diff/Utils"
+    RETURN_TYPES = ("INT", "INT", "INT")
+    RETURN_NAMES = ("width", "height", "batch_size")
+    FUNCTION = "batch_size"
+
+    def batch_size(self, image: Tensor):
+        (batch_size, height, width) = image.shape[0:3]
+        return (width, height, batch_size)
+
+
+class ImageChunking:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "images": ("IMAGE",),
+                "chunk_size": ("INT", {"default": 16, "min": 1, "max": 1024, "step": 1}),
+                "allow_remainder": ([True, False],),
+            },
+        }
+
+    CATEGORY = "Animate Diff/Utils"
+    RETURN_TYPES = ("IMAGE",)
+    OUTPUT_IS_LIST = (True,)
+    FUNCTION = "chunk"
+
+    def chunk(self, images: Tensor, chunk_size: int, allow_remainder: bool):
+        # Check if tensor is divisible into chunks of chunk_size
+        if images.shape[0] % chunk_size != 0 and not allow_remainder:
+            raise ValueError(
+                "Tensor's first dimension is not divisible by chunk size")
+
+        # Use torch.chunk to divide the tensor
+        chunk_count = images.shape[0] // chunk_size + \
+            images.shape[0] % chunk_size
+
+        print("chunk_count", chunk_count)
+        chunks = torch.chunk(images, chunk_count, dim=0)
+
+        return (list(chunks), )
 
 
 NODE_CLASS_MAPPINGS = {
     "AnimateDiffModuleLoader": AnimateDiffModuleLoader,
     "AnimateDiffCombine": AnimateDiffCombine,
     "AnimateDiffSampler": AnimateDiffSampler,
+    "LoadVideo": LoadVideo,
+    "ImageSizeAndBatchSize": ImageSizeAndBatchSize,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AnimateDiffModuleLoader": "Animate Diff Module Loader",
     "AnimateDiffSampler": "Animate Diff Sampler",
     "AnimateDiffCombine": "Animate Diff Combine",
+    "LoadVideo": "Load Video",
+    "ImageSizeAndBatchSize": "Get Image Size + Batch Size",
 }
