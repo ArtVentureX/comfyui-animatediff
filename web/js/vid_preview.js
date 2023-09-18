@@ -146,7 +146,7 @@ const videoPreview = {
 
     const onRemoved = nodeType.prototype.onRemoved;
     nodeType.prototype.onRemoved = function () {
-      cleanupNode(node);
+      cleanupNode(this);
       return onRemoved ? onRemoved.apply(this, arguments) : undefined;
     };
 
