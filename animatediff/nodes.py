@@ -334,7 +334,8 @@ class AnimateDiffCombine:
                 "loop_count": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
                 "save_image": ([True, False],),
                 "filename_prefix": ("STRING", {"default": "animate_diff"}),
-                "format": (["image/gif", "image/webp", "video/webm"],),
+                "format": (["image/gif", "image/webp"] +
+                           ["video/"+x[:-5] for x in folder_paths.get_filename_list("video_formats")],),
                 "pingpong": ([False, True],),
             },
             "hidden": {
@@ -399,12 +400,11 @@ class AnimateDiffCombine:
         if pingpong:
             frames = frames + frames[-2:0:-1]
 
-        # save gif
         format_type, format_ext = format.split("/")
-        file = f"{filename}_{counter:05}_.{format_ext}"
-        file_path = os.path.join(full_output_folder, file)
 
         if format_type == "image":
+            file = f"{filename}_{counter:05}_.{format_ext}"
+            file_path = os.path.join(full_output_folder, file)
             frames[0].save(
                 file_path,
                 format=format_ext.upper(),
@@ -422,11 +422,20 @@ class AnimateDiffCombine:
             ffmpeg_path = shutil.which("ffmpeg")
             if ffmpeg_path is None:
                 raise ProcessLookupError("Could not find ffmpeg")
+            video_format_path = folder_paths.get_full_path("video_formats", format_ext + ".json")
+            with open(video_format_path, 'r') as stream:
+                video_format = json.load(stream)
+            file = f"{filename}_{counter:05}_.{video_format['extension']}"
+            file_path = os.path.join(full_output_folder, file)
             dimensions = f"{frames[0].width}x{frames[0].height}"
-            args = [ffmpeg_path, "-v", "panic", "-n", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s",
-                    dimensions, "-r", str(frame_rate), "-i", "-", "-pix_fmt", "yuv420p", file_path]
+            args = [ffmpeg_path, "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+                    "-s", dimensions, "-r", str(frame_rate), "-i", "-"] \
+                    + video_format['main_pass'] + [file_path]
 
-            with subprocess.Popen(args, stdin=subprocess.PIPE) as proc:
+            env=os.environ
+            if "environment" in video_format:
+                env.update(video_format["environment"])
+            with subprocess.Popen(args, stdin=subprocess.PIPE, env=env) as proc:
                 for frame in frames:
                     proc.stdin.write(frame.tobytes())
 
