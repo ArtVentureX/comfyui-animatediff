@@ -561,7 +561,7 @@ class ImageSizeAndBatchSize:
     FUNCTION = "batch_size"
 
     def batch_size(self, image: Tensor):
-        (batch_size, width, height) = image.shape[0:3]
+        (batch_size, height, width) = image.shape[0:3]
         return (width, height, batch_size)
 
 
@@ -609,5 +609,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "AnimateDiffSampler": "Animate Diff Sampler",
     "AnimateDiffCombine": "Animate Diff Combine",
     "LoadVideo": "Load Video",
-    "ImageBatchSize": "Get Image Size + Batch Size",
+    "ImageSizeAndBatchSize": "Get Image Size + Batch Size",
 }

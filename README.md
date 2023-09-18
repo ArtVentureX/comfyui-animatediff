@@ -65,6 +65,7 @@ Samples:
 ### Using with ControlNet
 
 You will need following additional nodes:
+
 - [Kosinkadink/ComfyUI-Advanced-ControlNet](https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet): Apply different weight for each latent in batch
 - [Fannovel16/comfyui_controlnet_aux](https://github.com/Fannovel16/comfyui_controlnet_aux): ControlNet preprocessors
 
@@ -78,6 +79,7 @@ You will need following additional nodes:
 Workflow: [cn-2images.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/cn-2images.json)
 
 Samples:
+
 <table>
 <tr>
 <td>
@@ -93,6 +95,27 @@ Samples:
 </td>
 <td>
 <img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/707e4ce3-3594-4ff5-9a5f-f9596eb2bcf4">
+</td>
+</tr>
+</table>
+
+#### Using GIF as ControlNet input
+
+Using a GIF (or video, or a list of images) as ControlNet input.
+
+![image](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/cfeed634-e683-4797-b2fd-dbe0926a449e)
+
+Workflow: [cn-vid2vid.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/cn-vid2vid.json)
+
+Samples:
+
+<table>
+<tr>
+<td>
+<img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/bf926f52-da97-4fb4-b86a-8b26ef5fab04">
+</td>
+<td>
+<img src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/f6472c8c-9b92-47c2-8f28-638726f21be7">
 </td>
 </tr>
 </table>
