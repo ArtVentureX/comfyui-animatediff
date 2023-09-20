@@ -11,6 +11,12 @@
 - Community modules: [manshoety/AD_Stabilized_Motion](https://huggingface.co/manshoety/AD_Stabilized_Motion) | [CiaraRowles/TemporalDiff](https://huggingface.co/CiaraRowles/TemporalDiff)
 - AnimateDiff v2 [mm_sd_v15_v2.ckpt](https://huggingface.co/guoyww/animatediff/blob/main/mm_sd_v15_v2.ckpt)
 
+## Update 2023/09/21
+
+#### **Sliding Window** is now available!
+
+Sliding window is trigged automatically when generating more than 16 frames. To adjust the trigger number and other options, use `SlidingWindowOptions` node. See the sample workflow bellow.
+
 ## Nodes
 
 #### AnimateDiffLoader
@@ -20,12 +26,13 @@
 #### AnimateDiffSampler
 
 - Mostly the same with `KSampler`
-- Use `AnimateDiffLoader` to load the motion module
+- `motion_module`: use `AnimateDiffLoader` to load the motion module
 - `inject_method`: should left default
 - `frame_number`: animation length
 - `latent_image`: You can pass an `EmptyLatentImage`
+- `sliding_window_opts`: custom sliding window options
 
-<img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/f22d6b36-ce36-44cc-80e8-dffe6f77b296">
+<img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/a352195d-f40c-494d-bd3d-30ee88174b88">
 
 #### AnimateDiffCombine
 
@@ -33,9 +40,27 @@
 - `frame_rate`: number of frame per second
 - `loop_count`: use 0 for infinite loop
 - `save_image`: should GIF be saved to disk
-- `format`: supports `image/gif`, `image/webp` (better compression) or `video/webm` (need `ffmpeg` installed and available in PATH)
+- `format`: supports `image/gif`, `image/webp` (better compression), `video/webm`, `video/h264-mp4`, `video/h265-mp4`. To use video formats, you'll need [ffmpeg](https://ffmpeg.org/download.html) installed and available in **`PATH`**
 
 <img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/381c5acc-06ef-43da-ada0-3dc76f37a3e4">
+
+#### SlidingWindowOptions
+
+Custom sliding window options
+
+- `context_length`: number of frame per _window_. Use **16** to get the best results. Reduce it if you have low VRAM.
+- `closed_loop`: try to make the GIF a closed loop. Will take longer to render.
+
+<img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/6679a8dd-bf96-419f-8934-ea2b046dd23c">
+
+#### LoadVideo
+
+Load GIF or video as images. Usefull to load a GIF as ControlNet input.
+
+- `frame_start`: Skip some begining frames and start at `frame_start`
+- `frame_limit`: Only take `frame_limit` frames
+
+<img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/684176d5-6369-4a27-9f33-e721e0fe1876">
 
 ## Workflows
 
@@ -50,6 +75,17 @@ Samples:
 ![animate_diff_01](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/97efb96f-3d3d-4976-8789-78b88f89b2eb)
 
 ![animate_diff_02](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/c39b26f7-a2af-4dc4-902f-c363e2e6f39a)
+
+### Long duration with sliding window
+
+<img width="1280" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/0f8bfb87-83cb-4119-9777-e3948ec0cb5c">
+
+Workflow: [sliding-window.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/sliding-window.json)
+
+Samples:
+![AnimateDiff_00096_](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/e1da7a66-e615-475d-9400-41eff484ad49)
+
+![AnimateDiff_00099_](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/4faa7e5e-cdaa-49da-8759-46d779c0e0b6)
 
 ### Latent upscale
 

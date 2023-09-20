@@ -41,6 +41,7 @@ class MotionWrapper(nn.Module):
         self.down_blocks = nn.ModuleList([])
         self.up_blocks = nn.ModuleList([])
         self.mid_block = None
+        self.encoding_max_len = encoding_max_len
 
         for c in (320, 640, 1280, 1280):
             self.down_blocks.append(
@@ -56,7 +57,7 @@ class MotionWrapper(nn.Module):
             )
 
     @classmethod
-    def from_pretrained(cls, mm_state_dict: dict[str, Tensor], mm_type: str):
+    def from_state_dict(cls, mm_state_dict: dict[str, Tensor], mm_type: str):
         encoding_max_len = get_encoding_max_len(mm_state_dict)
         is_v2 = has_mid_block(mm_state_dict)
 
