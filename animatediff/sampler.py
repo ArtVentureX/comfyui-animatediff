@@ -51,7 +51,6 @@ def groupnorm_mm_factory(video_length: int):
 orig_forward_timestep_embed = openaimodel.forward_timestep_embed
 orig_maximum_batch_area = model_management.maximum_batch_area
 orig_groupnorm_forward = torch.nn.GroupNorm.forward
-openaimodel.forward_timestep_embed = forward_timestep_embed
 
 
 def inject_motion_module_to_unet_legacy(unet, motion_module: MotionWrapper):
@@ -219,6 +218,7 @@ class AnimateDiffSampler(KSampler):
         motion_module.set_video_length(frame_number)
         injectors[inject_method](unet, motion_module)
         self.override_beta_schedule(model.model)
+        openaimodel.forward_timestep_embed = forward_timestep_embed
         if not motion_module.is_v2:
             logger.info(f"Hacking GroupNorm.forward function.")
             torch.nn.GroupNorm.forward = groupnorm_mm_factory(frame_number)
@@ -235,6 +235,7 @@ class AnimateDiffSampler(KSampler):
         unet = model.model.diffusion_model
 
         self.restore_beta_schedule(model.model)
+        openaimodel.forward_timestep_embed = orig_forward_timestep_embed
         if not unet.motion_module.is_v2:
             logger.info(f"Restore GroupNorm.forward function.")
             torch.nn.GroupNorm.forward = orig_groupnorm_forward
