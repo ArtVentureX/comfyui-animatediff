@@ -738,10 +738,10 @@
         60,
         140
       ],
-      "size": [
-        340,
-        110
-      ],
+      "size": {
+        "0": 340,
+        "1": 110
+      },
       "flags": {},
       "order": 10,
       "mode": 0,
@@ -780,7 +780,7 @@
       ],
       "size": {
         "0": 310,
-        "1": 330
+        "1": 350
       },
       "flags": {},
       "order": 30,
@@ -812,6 +812,11 @@
           "name": "latent_image",
           "type": "LATENT",
           "link": 80
+        },
+        {
+          "name": "sliding_window_opts",
+          "type": "SLIDING_WINDOW_OPTS",
+          "link": null
         }
       ],
       "outputs": [
@@ -1039,10 +1044,10 @@
         2140,
         140
       ],
-      "size": [
-        360,
-        552
-      ],
+      "size": {
+        "0": 360,
+        "1": 552
+      },
       "flags": {},
       "order": 32,
       "mode": 0,
@@ -1070,8 +1075,7 @@
         true,
         "AnimateDiff",
         "image/gif",
-        true,
-        "/view?filename=AnimateDiff_00090_.gif&subfolder=&type=output&format=image%2Fgif"
+        true
       ]
     },
     {
@@ -1109,49 +1113,6 @@
       ],
       "color": "#1a572e",
       "bgcolor": "#2e6b42"
-    },
-    {
-      "id": 44,
-      "type": "VAEDecode",
-      "pos": [
-        1900,
-        520
-      ],
-      "size": {
-        "0": 210,
-        "1": 46
-      },
-      "flags": {},
-      "order": 31,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 81
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 82
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            172
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      },
-      "color": "#2e571a",
-      "bgcolor": "#426b2e"
     },
     {
       "id": 4,
@@ -1208,10 +1169,10 @@
         420,
         530
       ],
-      "size": [
-        260,
-        170
-      ],
+      "size": {
+        "0": 260,
+        "1": 170
+      },
       "flags": {},
       "order": 28,
       "mode": 0,
@@ -1478,6 +1439,49 @@
       ],
       "color": "#1a572e",
       "bgcolor": "#2e6b42"
+    },
+    {
+      "id": 44,
+      "type": "VAEDecode",
+      "pos": [
+        1898,
+        541
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 81
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 82
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            172
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#2e571a",
+      "bgcolor": "#426b2e"
     }
   ],
   "links": [

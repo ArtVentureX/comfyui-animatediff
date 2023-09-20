@@ -1,6 +1,6 @@
 {
-  "last_node_id": 106,
-  "last_link_id": 189,
+  "last_node_id": 107,
+  "last_link_id": 199,
   "nodes": [
     {
       "id": 16,
@@ -21,7 +21,7 @@
           "name": "MOTION_MODULE",
           "type": "MOTION_MODULE",
           "links": [
-            78
+            193
           ],
           "shape": 3,
           "slot_index": 0
@@ -77,10 +77,10 @@
         1240,
         140
       ],
-      "size": [
-        360,
-        732
-      ],
+      "size": {
+        "0": 360,
+        "1": 732
+      },
       "flags": {},
       "order": 13,
       "mode": 0,
@@ -108,8 +108,7 @@
         true,
         "AnimateDiff",
         "image/gif",
-        true,
-        "/view?filename=AnimateDiff_00092_.gif&subfolder=&type=output&format=image%2Fgif"
+        true
       ]
     },
     {
@@ -131,7 +130,7 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            79
+            194
           ],
           "slot_index": 0
         },
@@ -167,10 +166,10 @@
         60,
         300
       ],
-      "size": [
-        310,
-        100
-      ],
+      "size": {
+        "0": 310,
+        "1": 100
+      },
       "flags": {},
       "order": 6,
       "mode": 0,
@@ -207,10 +206,10 @@
         60,
         140
       ],
-      "size": [
-        310,
-        110
-      ],
+      "size": {
+        "0": 310,
+        "1": 110
+      },
       "flags": {},
       "order": 5,
       "mode": 0,
@@ -241,104 +240,16 @@
       "bgcolor": "#6b422e"
     },
     {
-      "id": 41,
-      "type": "AnimateDiffSampler",
-      "pos": [
-        900,
-        140
-      ],
-      "size": [
-        310,
-        330
-      ],
-      "flags": {},
-      "order": 11,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "motion_module",
-          "type": "MOTION_MODULE",
-          "link": 78,
-          "slot_index": 0
-        },
-        {
-          "name": "model",
-          "type": "MODEL",
-          "link": 79,
-          "slot_index": 1
-        },
-        {
-          "name": "positive",
-          "type": "CONDITIONING",
-          "link": 176
-        },
-        {
-          "name": "negative",
-          "type": "CONDITIONING",
-          "link": 180
-        },
-        {
-          "name": "latent_image",
-          "type": "LATENT",
-          "link": 80
-        },
-        {
-          "name": "frame_number",
-          "type": "INT",
-          "link": 185,
-          "widget": {
-            "name": "frame_number",
-            "config": [
-              "INT",
-              {
-                "default": 16,
-                "min": 2,
-                "max": 32,
-                "step": 1
-              }
-            ]
-          }
-        }
-      ],
-      "outputs": [
-        {
-          "name": "LATENT",
-          "type": "LATENT",
-          "links": [
-            81
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "AnimateDiffSampler"
-      },
-      "widgets_values": [
-        "default",
-        16,
-        345029849956754,
-        "fixed",
-        20,
-        8,
-        "euler",
-        "normal",
-        1
-      ],
-      "color": "#57571a",
-      "bgcolor": "#6b6b2e"
-    },
-    {
       "id": 39,
       "type": "ControlNetApplyAdvanced",
       "pos": [
         471,
         275
       ],
-      "size": [
-        300,
-        170
-      ],
+      "size": {
+        "0": 300,
+        "1": 170
+      },
       "flags": {},
       "order": 9,
       "mode": 0,
@@ -369,7 +280,7 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            176
+            195
           ],
           "shape": 3,
           "slot_index": 0
@@ -378,7 +289,7 @@
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            180
+            196
           ],
           "shape": 3,
           "slot_index": 1
@@ -394,50 +305,6 @@
       ],
       "color": "#43571a",
       "bgcolor": "#576b2e"
-    },
-    {
-      "id": 44,
-      "type": "VAEDecode",
-      "pos": [
-        1000,
-        520
-      ],
-      "size": {
-        "0": 210,
-        "1": 46
-      },
-      "flags": {},
-      "order": 12,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "samples",
-          "type": "LATENT",
-          "link": 81
-        },
-        {
-          "name": "vae",
-          "type": "VAE",
-          "link": 82
-        }
-      ],
-      "outputs": [
-        {
-          "name": "IMAGE",
-          "type": "IMAGE",
-          "links": [
-            172,
-            187
-          ],
-          "shape": 3,
-          "slot_index": 0
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "VAEDecode"
-      },
-      "color": "#2e571a",
-      "bgcolor": "#426b2e"
     },
     {
       "id": 103,
@@ -490,10 +357,10 @@
         520,
         630
       ],
-      "size": [
-        210,
-        80
-      ],
+      "size": {
+        "0": 210,
+        "1": 80
+      },
       "flags": {},
       "order": 10,
       "mode": 0,
@@ -501,7 +368,7 @@
         {
           "name": "width",
           "type": "INT",
-          "link": 189,
+          "link": 190,
           "widget": {
             "name": "width",
             "config": [
@@ -518,7 +385,7 @@
         {
           "name": "height",
           "type": "INT",
-          "link": 188,
+          "link": 191,
           "widget": {
             "name": "height",
             "config": [
@@ -538,7 +405,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            80
+            197
           ],
           "shape": 3,
           "slot_index": 0
@@ -556,72 +423,16 @@
       "bgcolor": "#2e6b42"
     },
     {
-      "id": 104,
-      "type": "ImageSizeAndBatchSize",
-      "pos": [
-        300,
-        630
-      ],
-      "size": [
-        190,
-        80
-      ],
-      "flags": {},
-      "order": 7,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "image",
-          "type": "IMAGE",
-          "link": 182
-        }
-      ],
-      "outputs": [
-        {
-          "name": "width",
-          "type": "INT",
-          "links": [
-            188
-          ],
-          "shape": 3,
-          "slot_index": 0
-        },
-        {
-          "name": "height",
-          "type": "INT",
-          "links": [
-            189
-          ],
-          "shape": 3,
-          "slot_index": 1
-        },
-        {
-          "name": "batch_size",
-          "type": "INT",
-          "links": [
-            185
-          ],
-          "shape": 3,
-          "slot_index": 2
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "ImageSizeAndBatchSize"
-      },
-      "color": "#1a5757",
-      "bgcolor": "#2e6b6b"
-    },
-    {
       "id": 36,
       "type": "ControlNetLoaderAdvanced",
       "pos": [
         -280,
         540
       ],
-      "size": [
-        310,
-        60
-      ],
+      "size": {
+        "0": 310,
+        "1": 60
+      },
       "flags": {},
       "order": 4,
       "mode": 0,
@@ -660,10 +471,10 @@
         70,
         830
       ],
-      "size": [
-        530,
-        420
-      ],
+      "size": {
+        "0": 530,
+        "1": 420
+      },
       "flags": {},
       "order": 8,
       "mode": 0,
@@ -687,10 +498,10 @@
         670,
         830
       ],
-      "size": [
-        530,
-        420
-      ],
+      "size": {
+        "0": 530,
+        "1": 420
+      },
       "flags": {},
       "order": 14,
       "mode": 0,
@@ -706,6 +517,195 @@
       },
       "color": "#1a5757",
       "bgcolor": "#2e6b6b"
+    },
+    {
+      "id": 104,
+      "type": "ImageSizeAndBatchSize",
+      "pos": [
+        258,
+        631
+      ],
+      "size": {
+        "0": 226.8000030517578,
+        "1": 80
+      },
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 182
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            190
+          ],
+          "shape": 3,
+          "slot_index": 0
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            191
+          ],
+          "shape": 3,
+          "slot_index": 1
+        },
+        {
+          "name": "batch_size",
+          "type": "INT",
+          "links": [
+            198
+          ],
+          "shape": 3,
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ImageSizeAndBatchSize"
+      },
+      "color": "#1a5757",
+      "bgcolor": "#2e6b6b"
+    },
+    {
+      "id": 44,
+      "type": "VAEDecode",
+      "pos": [
+        1000,
+        548
+      ],
+      "size": {
+        "0": 210,
+        "1": 46
+      },
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 199
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 82
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            172,
+            187
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "color": "#2e571a",
+      "bgcolor": "#426b2e"
+    },
+    {
+      "id": 107,
+      "type": "AnimateDiffSampler",
+      "pos": [
+        881,
+        141
+      ],
+      "size": [
+        330,
+        350
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "motion_module",
+          "type": "MOTION_MODULE",
+          "link": 193
+        },
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 194
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 195
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 196
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 197
+        },
+        {
+          "name": "sliding_window_opts",
+          "type": "SLIDING_WINDOW_OPTS",
+          "link": null
+        },
+        {
+          "name": "frame_number",
+          "type": "INT",
+          "link": 198,
+          "widget": {
+            "name": "frame_number",
+            "config": [
+              "INT",
+              {
+                "default": 16,
+                "min": 2,
+                "max": 10000,
+                "step": 1
+              }
+            ]
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            199
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimateDiffSampler"
+      },
+      "widgets_values": [
+        "default",
+        16,
+        0,
+        "randomize",
+        20,
+        8,
+        "euler",
+        "normal",
+        1
+      ]
     }
   ],
   "links": [
@@ -750,38 +750,6 @@
       "CONDITIONING"
     ],
     [
-      78,
-      16,
-      0,
-      41,
-      0,
-      "MOTION_MODULE"
-    ],
-    [
-      79,
-      4,
-      0,
-      41,
-      1,
-      "MODEL"
-    ],
-    [
-      80,
-      20,
-      0,
-      41,
-      4,
-      "LATENT"
-    ],
-    [
-      81,
-      41,
-      0,
-      44,
-      0,
-      "LATENT"
-    ],
-    [
       82,
       13,
       0,
@@ -796,22 +764,6 @@
       45,
       0,
       "IMAGE"
-    ],
-    [
-      176,
-      39,
-      0,
-      41,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      180,
-      39,
-      1,
-      41,
-      3,
-      "CONDITIONING"
     ],
     [
       181,
@@ -830,14 +782,6 @@
       "IMAGE"
     ],
     [
-      185,
-      104,
-      2,
-      41,
-      5,
-      "INT"
-    ],
-    [
       186,
       103,
       0,
@@ -854,20 +798,76 @@
       "IMAGE"
     ],
     [
-      188,
+      190,
       104,
       0,
+      20,
+      0,
+      "INT"
+    ],
+    [
+      191,
+      104,
+      1,
       20,
       1,
       "INT"
     ],
     [
-      189,
-      104,
+      193,
+      16,
+      0,
+      107,
+      0,
+      "MOTION_MODULE"
+    ],
+    [
+      194,
+      4,
+      0,
+      107,
       1,
+      "MODEL"
+    ],
+    [
+      195,
+      39,
+      0,
+      107,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      196,
+      39,
+      1,
+      107,
+      3,
+      "CONDITIONING"
+    ],
+    [
+      197,
       20,
       0,
+      107,
+      4,
+      "LATENT"
+    ],
+    [
+      198,
+      104,
+      2,
+      107,
+      6,
       "INT"
+    ],
+    [
+      199,
+      107,
+      0,
+      44,
+      0,
+      "LATENT"
     ]
   ],
   "groups": [],

@@ -195,10 +195,10 @@
         571,
         712
       ],
-      "size": [
-        275.35137939453125,
-        82
-      ],
+      "size": {
+        "0": 275.35137939453125,
+        "1": 82
+      },
       "flags": {},
       "order": 11,
       "mode": 0,
@@ -315,7 +315,7 @@
       ],
       "size": {
         "0": 315,
-        "1": 330
+        "1": 350
       },
       "flags": {},
       "order": 12,
@@ -347,6 +347,11 @@
           "name": "latent_image",
           "type": "LATENT",
           "link": 47
+        },
+        {
+          "name": "sliding_window_opts",
+          "type": "SLIDING_WINDOW_OPTS",
+          "link": null
         }
       ],
       "outputs": [
@@ -424,7 +429,7 @@
       ],
       "size": {
         "0": 315,
-        "1": 330
+        "1": 350
       },
       "flags": {},
       "order": 6,
@@ -456,6 +461,11 @@
           "name": "latent_image",
           "type": "LATENT",
           "link": 35
+        },
+        {
+          "name": "sliding_window_opts",
+          "type": "SLIDING_WINDOW_OPTS",
+          "link": null
         }
       ],
       "outputs": [
@@ -519,48 +529,6 @@
       ]
     },
     {
-      "id": 12,
-      "type": "AnimateDiffCombine",
-      "pos": [
-        1504,
-        481
-      ],
-      "size": [
-        325.7265625,
-        517.7265625
-      ],
-      "flags": {},
-      "order": 14,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "images",
-          "type": "IMAGE",
-          "link": 19
-        }
-      ],
-      "outputs": [
-        {
-          "name": "GIF",
-          "type": "GIF",
-          "links": null,
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "AnimateDiffCombine"
-      },
-      "widgets_values": [
-        8,
-        0,
-        true,
-        "AnimateDiff",
-        "image/webp",
-        false,
-        "/view?filename=AnimateDiff_00033_.webp&subfolder=&type=output&format=image%2Fwebp"
-      ]
-    },
-    {
       "id": 27,
       "type": "VAEDecode",
       "pos": [
@@ -604,13 +572,13 @@
       "id": 28,
       "type": "AnimateDiffCombine",
       "pos": [
-        1506,
-        -60
+        1505,
+        -72
       ],
-      "size": [
-        321.19170831298857,
-        513.0408935546875
-      ],
+      "size": {
+        "0": 321.19171142578125,
+        "1": 513.0408935546875
+      },
       "flags": {},
       "order": 10,
       "mode": 0,
@@ -637,9 +605,49 @@
         0,
         true,
         "AnimateDiff",
-        "image/webp",
-        false,
-        "/view?filename=AnimateDiff_00032_.webp&subfolder=&type=output&format=image%2Fwebp"
+        "image/gif",
+        false
+      ]
+    },
+    {
+      "id": 12,
+      "type": "AnimateDiffCombine",
+      "pos": [
+        1504,
+        481
+      ],
+      "size": {
+        "0": 325.7265625,
+        "1": 517.7265625
+      },
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GIF",
+          "type": "GIF",
+          "links": null,
+          "shape": 3
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "AnimateDiffCombine"
+      },
+      "widgets_values": [
+        8,
+        0,
+        true,
+        "AnimateDiff",
+        "image/gif",
+        false
       ]
     }
   ],
