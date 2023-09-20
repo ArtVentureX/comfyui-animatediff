@@ -186,8 +186,7 @@ class AnimateDiffSampler(KSampler):
         self.prev_linear_end = None
 
     def override_beta_schedule(self, model: BaseModel):
-        logger.info(f"Override beta schedule.")
-        self.prev_beta = model.get_buffer("betas").cpu().clone()
+        self.prev_beta = model.get_buffer("betas").cpu().clone().detach()
         self.prev_linear_start = model.linear_start
         self.prev_linear_end = model.linear_end
         model.register_schedule(
@@ -200,7 +199,6 @@ class AnimateDiffSampler(KSampler):
         )
 
     def restore_beta_schedule(self, model: BaseModel):
-        logger.info(f"Restoring beta schedule.")
         model.register_schedule(
             given_betas=self.prev_beta,
             linear_start=self.prev_linear_start,
@@ -286,12 +284,12 @@ class AnimateDiffSampler(KSampler):
                 f"AnimateDiff model {motion_module.mm_type} has upper limit of {motion_module.encoding_max_len} frames, but received {error}."
             )
 
+        # inject motion module
+        model = self.inject_motion_module(model, motion_module, inject_method, video_length)
+
         # inject sliding sampler
         if is_sliding:
             self.inject_sliding_sampler(frame_number, sliding_window_opts=sliding_window_opts)
-
-        # inject motion module
-        model = self.inject_motion_module(model, motion_module, inject_method, video_length)
 
         try:
             return super().sample(
@@ -310,6 +308,9 @@ class AnimateDiffSampler(KSampler):
         except:
             raise
         finally:
+            # eject motion module
             self.eject_motion_module(model, inject_method)
+
+            # eject sliding sampler
             if is_sliding:
                 self.eject_sliding_sampler()

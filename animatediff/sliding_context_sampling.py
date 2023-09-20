@@ -54,33 +54,21 @@ class SlidingContext:
 def __sliding_sample_factory(ctx: SlidingContext):
     logger.info(f"Injecting sliding context sampling function.")
     logger.info(f"Video length: {ctx.video_length}")
+    logger.info(f"Context length: {ctx.context_length}")
     logger.info(f"Context schedule: {ctx.context_schedule}")
 
     context_scheduler = get_context_scheduler(ctx.context_schedule)
-    batches = list(context_scheduler(
-        ctx.current_step,
-        ctx.total_steps,
-        ctx.video_length,
-        ctx.context_length,
-        ctx.context_stride,
-        ctx.context_overlap,
-        ctx.closed_loop,
-    ))
 
     def sample(model: ModelPatcher, *args, **kwargs):
         orig_callback = kwargs.pop("callback", None)
-        steps = args[1]
-        start_step = kwargs.get("start_step") or 1
-        last_step = kwargs.get("last_step") or steps
-        ctx.current_step = 1
-        ctx.total_steps = (last_step - start_step + 1) * len(batches)
+        start_step = kwargs.get("start_step") or 0
 
         # adjust progressbar to account for context frames
         def callback(step, x0, x, total_steps):
-            ctx.current_step += 1
-
             if orig_callback:
-                orig_callback(ctx.current_step, x0, x, ctx.total_steps)
+                orig_callback(step, x0, x, total_steps)
+
+            ctx.current_step = start_step + step + 1
 
         try:
             return orig_comfy_sample(model, *args, **kwargs, callback=callback)
@@ -430,7 +418,15 @@ def __sliding_sample_factory(ctx: SlidingContext):
                 return resized_cond
 
             # perform calc_cond_uncond_batch per context window
-            for ctx_idxs in batches:
+            for ctx_idxs in context_scheduler(
+                ctx.current_step,
+                ctx.total_steps,
+                ctx.video_length,
+                ctx.context_length,
+                ctx.context_stride,
+                ctx.context_overlap,
+                ctx.closed_loop,
+            ):
                 # account for all portions of input frames
                 full_idxs = []
                 for n in range(axes_factor):
