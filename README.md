@@ -15,7 +15,7 @@
 
 #### **Sliding Window** is now available!
 
-Sliding window is trigged automatically when generating more than 16 frames. To adjust the trigger number and other options, use `SlidingWindowOptions` node. See the sample workflow bellow.
+Sliding window is trigged automatically when generating more than 16 frames. To adjust the trigger number and other options, use `SlidingWindowOptions` node. See the [sample workflow](#long-duration-with-sliding-window) bellow.
 
 ## Nodes
 
@@ -83,9 +83,19 @@ Samples:
 Workflow: [sliding-window.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/sliding-window.json)
 
 Samples:
-![AnimateDiff_00096_](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/e1da7a66-e615-475d-9400-41eff484ad49)
 
-![AnimateDiff_00099_](https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/4faa7e5e-cdaa-49da-8759-46d779c0e0b6)
+<table>
+<tr>
+<td>
+<img width="512" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/e1da7a66-e615-475d-9400-41eff484ad49">
+</td>
+</tr>
+<tr>
+<td>
+<img width="768" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/4faa7e5e-cdaa-49da-8759-46d779c0e0b6">
+</td>
+</tr>
+</table>
 
 ### Latent upscale
 
@@ -157,6 +167,10 @@ Samples:
 </table>
 
 ## Known Issues
+
+### CUDA error: invalid configuration argument
+
+It's an `xformers` bug accidentally triggered by the way the original AnimateDiff CrossAttention is passed in. The current workaround is to disable xformers with `--disable-xformers` when booting ComfyUI.
 
 ### GIF split into multiple scenes
 
