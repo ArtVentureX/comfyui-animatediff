@@ -17,6 +17,9 @@ from .sampler import AnimateDiffSampler, AnimateDiffSlidingWindowOptions
 
 SLIDING_CONTEXT_LENGTH = 16
 
+video_formats_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "video_formats")
+video_formats = ["video/" + x[:-5] for x in os.listdir(video_formats_dir)]
+
 
 class AnimateDiffModuleLoader:
     @classmethod
@@ -53,10 +56,7 @@ class AnimateDiffCombine:
                 "loop_count": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
                 "save_image": ("BOOLEAN", {"default": True}),
                 "filename_prefix": ("STRING", {"default": "animate_diff"}),
-                "format": (
-                    ["image/gif", "image/webp"]
-                    + ["video/" + x[:-5] for x in folder_paths.get_filename_list("video_formats")],
-                ),
+                "format": (["image/gif", "image/webp"] + video_formats,),
                 "pingpong": ("BOOLEAN", {"default": False}),
             },
             "hidden": {
@@ -139,7 +139,7 @@ class AnimateDiffCombine:
             ffmpeg_path = shutil.which("ffmpeg")
             if ffmpeg_path is None:
                 raise ProcessLookupError("Could not find ffmpeg")
-            video_format_path = folder_paths.get_full_path("video_formats", format_ext + ".json")
+            video_format_path = os.path.join(video_formats_dir, format_ext + ".json")
             with open(video_format_path, "r") as stream:
                 video_format = json.load(stream)
             file = f"{filename}_{counter:05}_.{video_format['extension']}"
@@ -244,7 +244,6 @@ class LoadVideo:
         return frames
 
     def load(self, video: str, frame_start=0, frame_limit=16):
-        print("path", video)
         video_path = folder_paths.get_annotated_filepath(video)
         (_, ext) = os.path.splitext(video_path)
 
