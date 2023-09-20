@@ -26,8 +26,6 @@ class SlidingContext:
         context_schedule=ContextSchedules.UNIFORM,
         closed_loop=False,
         video_length=0,
-        start_step=0,
-        last_step=0,
         current_step=0,
         total_steps=0,
     ):
@@ -37,8 +35,6 @@ class SlidingContext:
         self.context_schedule = context_schedule
         self.closed_loop = closed_loop
         self.video_length = video_length
-        self.start_step = start_step
-        self.last_step = last_step
         self.current_step = current_step
         self.total_steps = total_steps
 
@@ -50,8 +46,6 @@ class SlidingContext:
             context_schedule=self.context_schedule,
             closed_loop=self.closed_loop,
             video_length=self.video_length,
-            start_step=self.start_step,
-            last_step=self.last_step,
             current_step=self.current_step,
             total_steps=self.total_steps,
         )
@@ -62,15 +56,31 @@ def __sliding_sample_factory(ctx: SlidingContext):
     logger.info(f"Video length: {ctx.video_length}")
     logger.info(f"Context schedule: {ctx.context_schedule}")
 
+    context_scheduler = get_context_scheduler(ctx.context_schedule)
+    batches = list(context_scheduler(
+        ctx.current_step,
+        ctx.total_steps,
+        ctx.video_length,
+        ctx.context_length,
+        ctx.context_stride,
+        ctx.context_overlap,
+        ctx.closed_loop,
+    ))
+
     def sample(model: ModelPatcher, *args, **kwargs):
         orig_callback = kwargs.pop("callback", None)
+        steps = args[1]
+        start_step = kwargs.get("start_step") or 1
+        last_step = kwargs.get("last_step") or steps
+        ctx.current_step = 1
+        ctx.total_steps = (last_step - start_step + 1) * len(batches)
 
         # adjust progressbar to account for context frames
         def callback(step, x0, x, total_steps):
-            ctx.current_step = ctx.start_step + step + 1
+            ctx.current_step += 1
 
             if orig_callback:
-                orig_callback(ctx.current_step, x0, x, total_steps)
+                orig_callback(ctx.current_step, x0, x, ctx.total_steps)
 
         try:
             return orig_comfy_sample(model, *args, **kwargs, callback=callback)
@@ -371,8 +381,6 @@ def __sliding_sample_factory(ctx: SlidingContext):
         def sliding_calc_cond_uncond_batch(
             model_function, cond, uncond, x_in, timestep, max_total_area, cond_concat_in, model_options
         ):
-            # get context scheduler
-            context_scheduler = get_context_scheduler(ctx.context_schedule)
             # figure out how input is split
             axes_factor = x.size(0) // ctx.video_length
 
@@ -422,15 +430,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
                 return resized_cond
 
             # perform calc_cond_uncond_batch per context window
-            for ctx_idxs in context_scheduler(
-                ctx.current_step,
-                ctx.total_steps,
-                ctx.video_length,
-                ctx.context_length,
-                ctx.context_stride,
-                ctx.context_overlap,
-                ctx.closed_loop,
-            ):
+            for ctx_idxs in batches:
                 # account for all portions of input frames
                 full_idxs = []
                 for n in range(axes_factor):

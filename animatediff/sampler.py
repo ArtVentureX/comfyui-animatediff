@@ -140,7 +140,7 @@ class AnimateDiffSlidingWindowOptions:
                 "context_stride": ("INT", {"default": 1, "min": 1, "max": 32}),
                 "context_overlap": ("INT", {"default": 4, "min": 0, "max": 32}),
                 "context_schedule": (ContextSchedules.CONTEXT_SCHEDULE_LIST,),
-                "closed_loop": ([False, True],),
+                "closed_loop": ("BOOLEAN", {"default": False}),
             }
         }
 
@@ -225,17 +225,9 @@ class AnimateDiffSampler(KSampler):
 
         return model
 
-    def inject_sliding_sampler(
-        self, video_length, sliding_window_opts: SlidingContext = None, start_step=None, last_step=None, **_
-    ):
+    def inject_sliding_sampler(self, video_length, sliding_window_opts: SlidingContext = None):
         ctx = sliding_window_opts.copy() if sliding_window_opts else SlidingContext()
-
         ctx.video_length = video_length
-        if start_step is not None:
-            ctx.start_step = start_step
-            ctx.current_step = start_step
-        if last_step is not None:
-            ctx.last_step = last_step
 
         inject_sampling_function(ctx)
 
@@ -295,7 +287,7 @@ class AnimateDiffSampler(KSampler):
 
         # inject sliding sampler
         if is_sliding:
-            self.inject_sliding_sampler(video_length, sliding_window_opts=sliding_window_opts, **kwargs)
+            self.inject_sliding_sampler(frame_number, sliding_window_opts=sliding_window_opts)
 
         # inject motion module
         model = self.inject_motion_module(model, motion_module, inject_method, video_length)

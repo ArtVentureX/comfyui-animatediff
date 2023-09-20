@@ -51,13 +51,13 @@ class AnimateDiffCombine:
                     {"default": 8, "min": 1, "max": 24, "step": 1},
                 ),
                 "loop_count": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
-                "save_image": ([True, False],),
+                "save_image": ("BOOLEAN", {"default": True}),
                 "filename_prefix": ("STRING", {"default": "animate_diff"}),
                 "format": (
                     ["image/gif", "image/webp"]
                     + ["video/" + x[:-5] for x in folder_paths.get_filename_list("video_formats")],
                 ),
-                "pingpong": ([False, True],),
+                "pingpong": ("BOOLEAN", {"default": False}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -299,7 +299,7 @@ class ImageChunking:
             "required": {
                 "images": ("IMAGE",),
                 "chunk_size": ("INT", {"default": 16, "min": 1, "max": 1024, "step": 1}),
-                "allow_remainder": ([True, False],),
+                "allow_remainder": ("BOOLEAN", {"default": True}),
             },
         }
 
