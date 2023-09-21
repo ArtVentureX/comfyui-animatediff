@@ -138,7 +138,7 @@ class AnimateDiffSlidingWindowOptions:
                 "context_length": ("INT", {"default": SLIDING_CONTEXT_LENGTH, "min": 2, "max": 32}),
                 "context_stride": ("INT", {"default": 1, "min": 1, "max": 32}),
                 "context_overlap": ("INT", {"default": 4, "min": 0, "max": 32}),
-                "context_schedule": (ContextSchedules.CONTEXT_SCHEDULE_LIST, {"default": ContextSchedules.UNIFORM_V2}),
+                "context_schedule": (ContextSchedules.CONTEXT_SCHEDULE_LIST, {"default": ContextSchedules.UNIFORM}),
                 "closed_loop": ("BOOLEAN", {"default": False}),
             }
         }
