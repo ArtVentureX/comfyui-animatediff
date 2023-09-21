@@ -1,11 +1,22 @@
-import os
 import torch
 from torch import Tensor, nn
 
 import math
 from einops import rearrange, repeat
 
-from comfy.ldm.modules.attention import FeedForward, CrossAttention
+import comfy.model_management as model_management
+from comfy.ldm.modules.attention import FeedForward, CrossAttention as ComfyCrossAttention, CrossAttentionBirchSan
+
+from .logger import logger
+
+CrossAttention = ComfyCrossAttention
+
+if model_management.xformers_enabled():
+    logger.warn(
+        "xformers is enabled but it has a bug that can cause issue while using with AnimateDiff."
+        + " Using sub quadratic optimization for AnimateDiff cross attention instead."
+    )
+    CrossAttention = CrossAttentionBirchSan
 
 
 def zero_module(module):
@@ -44,17 +55,11 @@ class MotionWrapper(nn.Module):
         self.encoding_max_len = encoding_max_len
 
         for c in (320, 640, 1280, 1280):
-            self.down_blocks.append(
-                MotionModule(c, BlockType.DOWN, encoding_max_len=encoding_max_len)
-            )
+            self.down_blocks.append(MotionModule(c, BlockType.DOWN, encoding_max_len=encoding_max_len))
         for c in (1280, 1280, 640, 320):
-            self.up_blocks.append(
-                MotionModule(c, BlockType.UP, encoding_max_len=encoding_max_len)
-            )
+            self.up_blocks.append(MotionModule(c, BlockType.UP, encoding_max_len=encoding_max_len))
         if is_v2:
-            self.mid_block = MotionModule(
-                1280, BlockType.MID, encoding_max_len=encoding_max_len
-            )
+            self.mid_block = MotionModule(1280, BlockType.MID, encoding_max_len=encoding_max_len)
 
     @classmethod
     def from_state_dict(cls, mm_state_dict: dict[str, Tensor], mm_type: str):
@@ -91,9 +96,7 @@ class MotionModule(nn.Module):
         self.block_type = block_type
 
         if block_type == BlockType.MID:
-            self.motion_modules = nn.ModuleList(
-                [get_motion_module(in_channels, encoding_max_len)]
-            )
+            self.motion_modules = nn.ModuleList([get_motion_module(in_channels, encoding_max_len)])
         else:
             self.motion_modules = nn.ModuleList(
                 [
@@ -102,9 +105,7 @@ class MotionModule(nn.Module):
                 ]
             )
             if block_type == BlockType.UP:
-                self.motion_modules.append(
-                    get_motion_module(in_channels, encoding_max_len)
-                )
+                self.motion_modules.append(get_motion_module(in_channels, encoding_max_len))
 
     def set_video_length(self, video_length: int):
         for motion_module in self.motion_modules:
@@ -112,9 +113,7 @@ class MotionModule(nn.Module):
 
 
 def get_motion_module(in_channels, max_len):
-    return VanillaTemporalModule(
-        in_channels=in_channels, temporal_position_encoding_max_len=max_len
-    )
+    return VanillaTemporalModule(in_channels=in_channels, temporal_position_encoding_max_len=max_len)
 
 
 class VanillaTemporalModule(nn.Module):
@@ -135,9 +134,7 @@ class VanillaTemporalModule(nn.Module):
         self.temporal_transformer = TemporalTransformer3DModel(
             in_channels=in_channels,
             num_attention_heads=num_attention_heads,
-            attention_head_dim=in_channels
-            // num_attention_heads
-            // temporal_attention_dim_div,
+            attention_head_dim=in_channels // num_attention_heads // temporal_attention_dim_div,
             num_layers=num_transformer_block,
             attention_block_types=attention_block_types,
             cross_frame_attention_mode=cross_frame_attention_mode,
@@ -146,17 +143,13 @@ class VanillaTemporalModule(nn.Module):
         )
 
         if zero_initialize:
-            self.temporal_transformer.proj_out = zero_module(
-                self.temporal_transformer.proj_out
-            )
+            self.temporal_transformer.proj_out = zero_module(self.temporal_transformer.proj_out)
 
     def set_video_length(self, video_length: int):
         self.temporal_transformer.set_video_length(video_length)
 
     def forward(self, input_tensor, encoder_hidden_states, attention_mask=None):
-        return self.temporal_transformer(
-            input_tensor, encoder_hidden_states, attention_mask
-        )
+        return self.temporal_transformer(input_tensor, encoder_hidden_states, attention_mask)
 
 
 class TemporalTransformer3DModel(nn.Module):
@@ -184,9 +177,7 @@ class TemporalTransformer3DModel(nn.Module):
 
         inner_dim = num_attention_heads * attention_head_dim
 
-        self.norm = torch.nn.GroupNorm(
-            num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True
-        )
+        self.norm = torch.nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
         self.proj_in = nn.Linear(in_channels, inner_dim)
 
         self.transformer_blocks = nn.ModuleList(
@@ -221,9 +212,7 @@ class TemporalTransformer3DModel(nn.Module):
 
         hidden_states = self.norm(hidden_states)
         inner_dim = hidden_states.shape[1]
-        hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(
-            batch, height * weight, inner_dim
-        )
+        hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch, height * weight, inner_dim)
         hidden_states = self.proj_in(hidden_states)
 
         # Transformer Blocks
@@ -236,11 +225,7 @@ class TemporalTransformer3DModel(nn.Module):
 
         # output
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = (
-            hidden_states.reshape(batch, height, weight, inner_dim)
-            .permute(0, 3, 1, 2)
-            .contiguous()
-        )
+        hidden_states = hidden_states.reshape(batch, height, weight, inner_dim).permute(0, 3, 1, 2).contiguous()
 
         output = hidden_states + residual
 
@@ -276,9 +261,7 @@ class TemporalTransformerBlock(nn.Module):
             attention_blocks.append(
                 VersatileAttention(
                     attention_mode=block_name.split("_")[0],
-                    context_dim=cross_attention_dim
-                    if block_name.endswith("_Cross")
-                    else None,
+                    context_dim=cross_attention_dim if block_name.endswith("_Cross") else None,
                     query_dim=dim,
                     heads=num_attention_heads,
                     dim_head=attention_head_dim,
@@ -310,9 +293,7 @@ class TemporalTransformerBlock(nn.Module):
             hidden_states = (
                 attention_block(
                     norm_hidden_states,
-                    encoder_hidden_states=encoder_hidden_states
-                    if attention_block.is_cross_attention
-                    else None,
+                    encoder_hidden_states=encoder_hidden_states if attention_block.is_cross_attention else None,
                     video_length=video_length,
                 )
                 + hidden_states
@@ -329,9 +310,7 @@ class PositionalEncoding(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
         position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
-        )
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
         pe = torch.zeros(1, max_len, d_model)
         pe[0, :, 0::2] = torch.sin(position * div_term)
         pe[0, :, 1::2] = torch.cos(position * div_term)
@@ -383,9 +362,7 @@ class VersatileAttention(CrossAttention):
             raise NotImplementedError
 
         d = hidden_states.shape[1]
-        hidden_states = rearrange(
-            hidden_states, "(b f) d c -> (b d) f c", f=video_length
-        )
+        hidden_states = rearrange(hidden_states, "(b f) d c -> (b d) f c", f=video_length)
 
         if self.pos_encoder is not None:
             hidden_states = self.pos_encoder(hidden_states)
