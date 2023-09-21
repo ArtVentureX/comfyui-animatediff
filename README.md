@@ -15,7 +15,7 @@
 
 #### **Sliding Window** is now available!
 
-Sliding window is trigged automatically when generating more than 16 frames. To adjust the trigger number and other options, use `SlidingWindowOptions` node. See the [sample workflow](#long-duration-with-sliding-window) bellow.
+The sliding window feature enables you to generate GIFs without a frame length limit. It divides frames into smaller batches with a slight overlap. This feature is activated automatically when generating more than 16 frames. To modify the trigger number and other settings, utilize the `SlidingWindowOptions` node. See the [sample workflow](#long-duration-with-sliding-window) bellow.
 
 ## Nodes
 
@@ -49,7 +49,13 @@ Sliding window is trigged automatically when generating more than 16 frames. To 
 Custom sliding window options
 
 - `context_length`: number of frame per _window_. Use **16** to get the best results. Reduce it if you have low VRAM.
-- `closed_loop`: try to make the GIF a closed loop. Will take longer to render.
+- `context_stride`:
+  - 1: sampling every frame
+  - 2: sampling every frame then every second frame
+  - 3: sampling every frame then every second frame then every third frames
+  - ...
+- `context_overlap`: overlap frames between each window slice
+- `closed_loop`: make the GIF a closed loop, will add more sampling step
 
 <img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/6679a8dd-bf96-419f-8934-ea2b046dd23c">
 
