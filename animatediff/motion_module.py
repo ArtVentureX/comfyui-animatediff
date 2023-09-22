@@ -5,18 +5,26 @@ import math
 from einops import rearrange, repeat
 
 import comfy.model_management as model_management
-from comfy.ldm.modules.attention import FeedForward, CrossAttention as ComfyCrossAttention, CrossAttentionBirchSan
+from comfy.ldm.modules.attention import (
+    FeedForward,
+    CrossAttention as ComfyCrossAttention,
+    CrossAttentionDoggettx,
+    CrossAttentionBirchSan,
+)
+from comfy.cli_args import args
 
 from .logger import logger
 
 CrossAttention = ComfyCrossAttention
 
 if model_management.xformers_enabled():
-    logger.warn(
-        "xformers is enabled but it has a bug that can cause issue while using with AnimateDiff."
-        + " Using sub quadratic optimization for AnimateDiff cross attention instead."
-    )
-    CrossAttention = CrossAttentionBirchSan
+    logger.warn("xformers is enabled but it has a bug that can cause issue while using with AnimateDiff.")
+    if args.use_split_cross_attention:
+        logger.warn("Using split optimization for AnimateDiff cross attention instead.")
+        CrossAttention = CrossAttentionDoggettx
+    else:
+        logger.warn("Using sub quadratic optimization for AnimateDiff cross attention instead.")
+        CrossAttention = CrossAttentionBirchSan
 
 
 def zero_module(module):
