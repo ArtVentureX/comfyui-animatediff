@@ -11,7 +11,7 @@ from PIL.PngImagePlugin import PngInfo
 import folder_paths
 
 from .model_utils import get_available_models, load_motion_module
-from .utils import pil2tensor
+from .utils import pil2tensor, ensure_opencv
 from .sampler import AnimateDiffSampler, AnimateDiffSlidingWindowOptions
 
 
@@ -222,6 +222,7 @@ class LoadVideo:
         return frames
 
     def load_video(self, video_path, frame_start: int, frame_limit: int):
+        ensure_opencv()
         import cv2
 
         video = cv2.VideoCapture(video_path)
@@ -249,12 +250,12 @@ class LoadVideo:
 
         if ext.lower() in {".gif", ".webp"}:
             frames = self.load_gif(video_path, frame_start, frame_limit)
-        elif ext.lower() in {".webp", ".mp4", ".mov", ".avi"}:
+        elif ext.lower() in {".webp", ".mp4", ".mov", ".avi", ".webm"}:
             frames = self.load_video(video_path, frame_start, frame_limit)
         else:
             raise ValueError(f"Unsupported video format: {ext}")
 
-        return (torch.cat(frames, dim=0),)
+        return (torch.cat(frames, dim=0), len(frames))
 
     @classmethod
     def IS_CHANGED(s, image, *args, **kwargs):
