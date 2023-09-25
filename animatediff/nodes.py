@@ -97,7 +97,7 @@ class AnimateDiffLoraLoader:
         return {
             "required": {
                 "lora_name": (get_available_loras(),),
-                "alpha": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "alpha": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0, "step": 0.001}),
             },
             "optional": {
                 "lora_stack": ("MOTION_LORA_STACK",),
