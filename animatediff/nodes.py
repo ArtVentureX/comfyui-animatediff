@@ -3,16 +3,18 @@ import json
 import torch
 import numpy as np
 import hashlib
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from torch import Tensor
 from PIL import Image, ImageSequence
 from PIL.PngImagePlugin import PngInfo
 
 import folder_paths
 
+from .motion_module import MotionWrapper
 from .model_utils import get_available_models, load_motion_module, get_available_loras, load_lora
 from .utils import pil2tensor, ensure_opencv
 from .sampler import AnimateDiffSampler, AnimateDiffSlidingWindowOptions
+from .logger import logger
 
 
 SLIDING_CONTEXT_LENGTH = 16
@@ -28,17 +30,42 @@ class AnimateDiffModuleLoader:
             "required": {
                 "model_name": (get_available_models(),),
             },
+            "optional": {
+                "lora_stack": ("MOTION_LORA_STACK",),
+            },
         }
 
     RETURN_TYPES = ("MOTION_MODULE",)
     CATEGORY = "Animate Diff"
     FUNCTION = "load_motion_module"
 
+    def inject_loras(self, motion_module: MotionWrapper, lora_stack: List[Tuple[Dict[str, Tensor], float]]):
+        for lora in lora_stack:
+            (state_dict, alpha) = lora
+
+            for key in state_dict:
+                layer_infos = key.split(".")
+
+                curr_layer = motion_module
+                while len(layer_infos) > 0:
+                    temp_name = layer_infos.pop(0)
+                    curr_layer = curr_layer.__getattr__(temp_name)
+
+                curr_layer.weight.data += alpha * state_dict[key].to(curr_layer.weight.data.device)
+
     def load_motion_module(
         self,
         model_name: str,
+        lora_stack: List = None,
     ):
         motion_module = load_motion_module(model_name)
+
+        # inject loras
+        if isinstance(lora_stack, list):
+            if motion_module.is_v2:
+                self.inject_loras(motion_module, lora_stack)
+            else:
+                logger.warning("LoRA is provided but only motion module v2 is supported.")
 
         return (motion_module,)
 
