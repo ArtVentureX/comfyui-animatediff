@@ -1,5 +1,6 @@
 import os
 import hashlib
+import torch
 from typing import Dict
 
 import folder_paths
@@ -11,6 +12,7 @@ from .motion_module import MotionWrapper
 
 
 motion_modules: Dict[str, MotionWrapper] = {}
+motion_loras: Dict[str, Dict[str, torch.Tensor]] = {}
 
 
 folder_paths.folder_names_and_paths["AnimateDiff"] = (
@@ -20,19 +22,34 @@ folder_paths.folder_names_and_paths["AnimateDiff"] = (
     ],
     folder_paths.supported_pt_extensions,
 )
+folder_paths.folder_names_and_paths["AnimateDiffLora"] = (
+    [
+        os.path.join(folder_paths.models_dir, "AnimateDiffLora"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "loras"),
+    ],
+    folder_paths.supported_pt_extensions,
+)
 
 
 def get_available_models():
     return folder_paths.get_filename_list("AnimateDiff")
 
 
+def get_available_loras():
+    return folder_paths.get_filename_list("AnimateDiffLora")
+
+
 def get_model_path(model_name):
     return folder_paths.get_full_path("AnimateDiff", model_name)
 
 
+def get_lora_path(lora_name):
+    return folder_paths.get_full_path("AnimateDiffLora", lora_name)
+
+
 def get_model_hash(file_path):
     with open(file_path, "rb") as f:
-        bytes = f.read()  # read entire file as bytes
+        bytes = f.read(1024 * 1024)  # read entire file as bytes
         return hashlib.sha256(bytes).hexdigest()
 
 
@@ -54,3 +71,30 @@ def load_motion_module(model_name: str):
         motion_modules[model_hash] = motion_module
 
     return motion_modules[model_hash]
+
+
+def load_lora(lora_name: str):
+    lora_path = get_lora_path(lora_name)
+    lora_hash = get_model_hash(lora_path)
+    if lora_hash not in motion_modules:
+        logger.info(f"Loading lora {lora_name}")
+        state_dict = load_torch_file(lora_path)
+        updated_state_dict: Dict[str, torch.Tensor] = {}
+
+        for key in state_dict:
+            # only process lora down key
+            if "up." in key:
+                continue
+
+            up_key = key.replace(".down.", ".up.")
+            model_key = key.replace("processor.", "").replace("_lora", "").replace("down.", "").replace("up.", "")
+            model_key = model_key.replace("to_out.", "to_out.0.")
+            combined_key = ".".join(model_key.split(".")[:-1])
+
+            weight_down = state_dict[key]
+            weight_up = state_dict[up_key]
+            updated_state_dict[combined_key] = torch.mm(weight_up, weight_down).to("cpu")
+
+        motion_loras[lora_hash] = updated_state_dict
+
+    return motion_loras[lora_hash]

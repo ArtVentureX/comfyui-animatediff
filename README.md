@@ -11,6 +11,48 @@
 - Community modules: [manshoety/AD_Stabilized_Motion](https://huggingface.co/manshoety/AD_Stabilized_Motion) | [CiaraRowles/TemporalDiff](https://huggingface.co/CiaraRowles/TemporalDiff)
 - AnimateDiff v2 [mm_sd_v15_v2.ckpt](https://huggingface.co/guoyww/animatediff/blob/main/mm_sd_v15_v2.ckpt)
 
+## Update 2023/09/25
+
+#### **Motion LoRA** is now supported!
+
+Download [motion LoRAs](https://huggingface.co/guoyww/animatediff/tree/main) and put them under `comfyui-animatediff/loras/` folder.
+
+Note: LoRAs only work with **AnimateDiff v2** [mm_sd_v15_v2.ckpt](https://huggingface.co/guoyww/animatediff/blob/main/mm_sd_v15_v2.ckpt) module.
+
+#### New node: `AnimateDiffLoraLoader`
+
+<img width="370" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/7a9f62f7-702e-48a4-934c-bbfe1e23aff2">
+
+Example workflow:
+<img width="1280" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/93e7550f-4648-4482-9961-6cece5132dc9">
+
+Workflow: [lora.json](https://github.com/ArtVentureX/comfyui-animatediff/blob/main/workflows/lora.json)
+
+Samples:
+
+<table>
+<tr>
+<td>
+<img width="512" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/2c5aa25e-0682-481f-8842-066c5b988864">
+</td>
+</tr>
+<tr>
+<td>
+<img width="512" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/adfbad45-3ba5-42e3-9bee-d2b83f43989c">
+</td>
+</tr>
+<tr>
+<td>
+<img width="512" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/8e484c74-c691-4d1c-9514-719dbfe3a0b5">
+</td>
+</tr>
+<tr>
+<td>
+<img width="512" alt="image" src="https://github.com/ArtVentureX/comfyui-animatediff/assets/133728487/4921a335-9207-4a7b-9d66-61a5d76e3179">
+</td>
+</tr>
+</table>
+
 ## Update 2023/09/21
 
 #### **Sliding Window** is now available!
