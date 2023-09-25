@@ -54,8 +54,9 @@ class AnimateDiffModuleLoader:
                 curr_layer.weight.data += alpha * state_dict[key].to(curr_layer.weight.data.device)
 
     def eject_loras(self, motion_module: MotionWrapper, lora_stack: List[Tuple[float, Dict[str, Tensor]]]):
-        for lora in lora_stack.reverse():
-            (alpha, state_dict) = lora
+        lora_stack.reverse() # should not matter but just in case
+        for lora in lora_stack:
+            (state_dict, alpha) = lora
 
             for key in state_dict:
                 layer_infos = key.split(".")
@@ -76,7 +77,7 @@ class AnimateDiffModuleLoader:
 
         # inject loras
         if motion_module.is_v2:
-            if hasattr(motion_module, "lora_stack"):
+            if hasattr(motion_module, "lora_stack") and isinstance(motion_module.lora_stack, list):
                 self.eject_loras(motion_module, motion_module.lora_stack)
                 delattr(motion_module, "lora_stack")
 
