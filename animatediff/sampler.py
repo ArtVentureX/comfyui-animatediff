@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from torch.nn.functional import group_norm
 from einops import rearrange
+from typing import List, Tuple, Dict
 
 import comfy.ldm.modules.diffusionmodules.openaimodel as openaimodel
 import comfy.model_management as model_management
@@ -173,7 +174,10 @@ class AnimateDiffSampler(KSampler):
             }
         }
         inputs["required"].update(KSampler.INPUT_TYPES()["required"])
-        inputs["optional"] = {"sliding_window_opts": ("SLIDING_WINDOW_OPTS",)}
+        inputs["optional"] = {
+            "sliding_window_opts": ("SLIDING_WINDOW_OPTS",),
+            "lora_stack": ("MOTION_LORA_STACK",),
+        }
         return inputs
 
     FUNCTION = "animatediff_sample"
@@ -229,6 +233,20 @@ class AnimateDiffSampler(KSampler):
 
         inject_sampling_function(ctx)
 
+    def inject_loras(self, model, lora_stack: List[Tuple[float, Dict[str, Tensor]]]):
+        for lora in lora_stack:
+            (alpha, state_dict) = lora
+
+            for key in state_dict:
+                layer_infos = key.split(".")
+
+                curr_layer = model.diffusion_model
+                while len(layer_infos) > 0:
+                    temp_name = layer_infos.pop(0)
+                    curr_layer = curr_layer.__getattr__(temp_name)
+
+                curr_layer.weight.data += alpha * state_dict[key].to(curr_layer.weight.data.device)
+
     def eject_motion_module(self, model, inject_method):
         unet = model.model.diffusion_model
 
@@ -243,6 +261,20 @@ class AnimateDiffSampler(KSampler):
 
     def eject_sliding_sampler(self):
         eject_sampling_function()
+
+    def eject_loras(self, model, lora_stack: List[Tuple[float, Dict[str, Tensor]]]):
+        for lora in lora_stack.reverse():
+            (alpha, state_dict) = lora
+
+            for key in state_dict:
+                layer_infos = key.split(".")
+
+                curr_layer = model.diffusion_model
+                while len(layer_infos) > 0:
+                    temp_name = layer_infos.pop(0)
+                    curr_layer = curr_layer.__getattr__(temp_name)
+
+                curr_layer.weight.data -= alpha * state_dict[key].to(curr_layer.weight.data.device)
 
     def animatediff_sample(
         self,
@@ -260,6 +292,7 @@ class AnimateDiffSampler(KSampler):
         latent_image,
         denoise=1.0,
         sliding_window_opts: SlidingContext = None,
+        lora_stack: List = None,
         **kwargs,
     ):
         # init latents
@@ -287,6 +320,15 @@ class AnimateDiffSampler(KSampler):
         # inject motion module
         model = self.inject_motion_module(model, motion_module, inject_method, video_length)
 
+        # inject loras
+        if isinstance(lora_stack, list):
+            if motion_module.is_v2:
+                self.inject_loras(model, lora_stack)
+            else:
+                logger.warning(
+                    "Lora is provided but only motion module v2 is supported. Please switch to mm_sd_v15_v2 module."
+                )
+
         # inject sliding sampler
         if is_sliding:
             self.inject_sliding_sampler(frame_number, sliding_window_opts=sliding_window_opts)
@@ -308,6 +350,10 @@ class AnimateDiffSampler(KSampler):
         except:
             raise
         finally:
+            # eject loras
+            if isinstance(lora_stack, list) and motion_module.is_v2:
+                self.eject_loras(model, lora_stack)
+
             # eject motion module
             self.eject_motion_module(model, inject_method)
 
