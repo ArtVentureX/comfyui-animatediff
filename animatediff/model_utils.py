@@ -49,7 +49,7 @@ def get_lora_path(lora_name):
 
 def get_model_hash(file_path):
     with open(file_path, "rb") as f:
-        bytes = f.read()  # read entire file as bytes
+        bytes = f.read(1024 * 1024)  # read entire file as bytes
         return hashlib.sha256(bytes).hexdigest()
 
 
@@ -93,7 +93,7 @@ def load_lora(lora_name: str):
 
             weight_down = state_dict[key]
             weight_up = state_dict[up_key]
-            updated_state_dict[combined_key] = torch.mm(weight_up, weight_down)
+            updated_state_dict[combined_key] = torch.mm(weight_up, weight_down).to("cpu")
 
         motion_loras[lora_hash] = updated_state_dict
 

@@ -53,6 +53,20 @@ class AnimateDiffModuleLoader:
 
                 curr_layer.weight.data += alpha * state_dict[key].to(curr_layer.weight.data.device)
 
+    def eject_loras(self, motion_module: MotionWrapper, lora_stack: List[Tuple[float, Dict[str, Tensor]]]):
+        for lora in lora_stack.reverse():
+            (alpha, state_dict) = lora
+
+            for key in state_dict:
+                layer_infos = key.split(".")
+
+                curr_layer = motion_module
+                while len(layer_infos) > 0:
+                    temp_name = layer_infos.pop(0)
+                    curr_layer = curr_layer.__getattr__(temp_name)
+
+                curr_layer.weight.data -= alpha * state_dict[key].to(curr_layer.weight.data.device)
+
     def load_motion_module(
         self,
         model_name: str,
@@ -61,11 +75,17 @@ class AnimateDiffModuleLoader:
         motion_module = load_motion_module(model_name)
 
         # inject loras
-        if isinstance(lora_stack, list):
-            if motion_module.is_v2:
+        if motion_module.is_v2:
+            if hasattr(motion_module, "lora_stack"):
+                self.eject_loras(motion_module, motion_module.lora_stack)
+                delattr(motion_module, "lora_stack")
+
+            if isinstance(lora_stack, list):
                 self.inject_loras(motion_module, lora_stack)
-            else:
-                logger.warning("LoRA is provided but only motion module v2 is supported.")
+                setattr(motion_module, "lora_stack", lora_stack)
+
+        elif isinstance(lora_stack, list):
+            logger.warning("LoRA is provided but only motion module v2 is supported.")
 
         return (motion_module,)
 
