@@ -6,25 +6,30 @@ from einops import rearrange, repeat
 
 import comfy.model_management as model_management
 from comfy.ldm.modules.attention import (
+    default,
     FeedForward,
     CrossAttention as ComfyCrossAttention,
-    CrossAttentionDoggettx,
-    CrossAttentionBirchSan,
+    attention_basic,
+    attention_pytorch,
+    attention_split,
+    attention_sub_quad,
 )
 from comfy.cli_args import args
 
 from .logger import logger
 
-CrossAttention = ComfyCrossAttention
+attention = attention_basic
 
 if model_management.xformers_enabled():
     logger.warn("xformers is enabled but it has a bug that can cause issue while using with AnimateDiff.")
+
+if model_management.pytorch_attention_enabled():
+    attention = attention_pytorch
+else:
     if args.use_split_cross_attention:
-        logger.warn("Using split optimization for AnimateDiff cross attention instead.")
-        CrossAttention = CrossAttentionDoggettx
+        attention = attention_split
     else:
-        logger.warn("Using sub quadratic optimization for AnimateDiff cross attention instead.")
-        CrossAttention = CrossAttentionBirchSan
+        attention = attention_sub_quad
 
 
 def zero_module(module):
@@ -49,6 +54,24 @@ def has_mid_block(mm_state_dict: dict[str, Tensor]):
         if key.startswith("mid_block."):
             return True
     return False
+
+
+class CrossAttention(ComfyCrossAttention):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward(self, x, context=None, value=None, mask=None):
+        q = self.to_q(x)
+        context = default(context, x)
+        k = self.to_k(context)
+        if value is not None:
+            v = self.to_v(value)
+            del value
+        else:
+            v = self.to_v(context)
+
+        out = attention(q, k, v, self.heads, mask)
+        return self.to_out(out)
 
 
 class MotionWrapper(nn.Module):
