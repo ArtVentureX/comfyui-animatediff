@@ -1,6 +1,7 @@
+import math
 import torch
 from torch import Tensor
-import math
+from typing import List, Dict
 
 import comfy.utils
 import comfy.sample
@@ -338,37 +339,29 @@ def __sliding_sample_factory(ctx: SlidingContext):
                 control.full_latent_length = ctx.video_length
                 control.context_length = ctx.context_length
 
-            def get_resized_cond(cond_in, full_idxs) -> list:
+            def get_resized_cond(cond_in: List[Dict], full_idxs) -> list:
                 # reuse or resize cond items to match context requirements
                 resized_cond = []
                 # cond object is a list containing a list - outer list is irrelevant, so just loop through it
                 for actual_cond in cond_in:
-                    resized_actual_cond = []
-                    # now we are in the inner list - index 0 is tensor, index 1 is dictionary
-                    for cond_idx, cond_item in enumerate(actual_cond):
+                    new_cond_item = actual_cond.copy()
+                    for key, cond_item in new_cond_item.items():
                         if isinstance(cond_item, Tensor):
                             # check that tensor is the expected length - x.size(0)
                             if cond_item.size(0) == x.size(0):
-                                pass
                                 # if so, it's subsetting time - tell controls the expected indeces so they can handle them
                                 actual_cond_item = cond_item[full_idxs]
-                                resized_actual_cond.append(actual_cond_item)
+                                new_cond_item[key] = actual_cond_item
+                        elif key == "control":
+                            control_item = cond_item
+                            if hasattr(control_item, "sub_idxs"):
+                                prepare_control_objects(control_item, full_idxs)
                             else:
-                                resized_actual_cond.append(cond_item)
-                        elif isinstance(cond_item, dict):
-                            # when in dictionary, look for control
-                            if "control" in cond_item:
-                                control_item = cond_item["control"]
-                                if hasattr(control_item, "sub_idxs"):
-                                    prepare_control_objects(control_item, full_idxs)
-                                else:
-                                    raise ValueError(
-                                        f"Control type {type(control_item).__name__} may not support required features for sliding context window; use Control objects from Kosinkadink/Advanced-ControlNet nodes."
-                                    )
-                            resized_actual_cond.append(cond_item)
-                        else:
-                            resized_actual_cond.append(cond_item)
-                    resized_cond.append(resized_actual_cond)
+                                raise ValueError(
+                                    f"Control type {type(control_item).__name__} may not support required features for sliding context window; use Control objects from Kosinkadink/Advanced-ControlNet nodes."
+                                )
+                            new_cond_item[key] = cond_item
+                    resized_cond.append(new_cond_item)
                 return resized_cond
 
             # perform calc_cond_uncond_batch per context window
