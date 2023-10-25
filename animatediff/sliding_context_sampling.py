@@ -17,6 +17,10 @@ orig_comfy_sample = comfy.sample.sample
 orig_sampling_function = comfy_samplers.sampling_function
 
 
+def lcm(a, b):
+    return abs(a * b) // math.gcd(a, b)
+
+
 class SlidingContext:
     def __init__(
         self,
@@ -177,7 +181,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
                     if s1[0] != s2[0] or s1[2] != s2[2]:  # these 2 cases should not happen
                         return False
 
-                    mult_min = comfy_samplers.lcm(s1[1], s2[1])
+                    mult_min = lcm(s1[1], s2[1])
                     diff = mult_min // min(s1[1], s2[1])
                     if (
                         diff > 4
@@ -222,7 +226,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
                     if crossattn_max_len == 0:
                         crossattn_max_len = c.shape[1]
                     else:
-                        crossattn_max_len = comfy_samplers.lcm(crossattn_max_len, c.shape[1])
+                        crossattn_max_len = lcm(crossattn_max_len, c.shape[1])
                     c_crossattn.append(c)
                 if "c_concat" in x:
                     c_concat.append(x["c_concat"])
