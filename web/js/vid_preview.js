@@ -81,11 +81,16 @@ export const CreatePreviewElement = (name, val, format, callback) => {
     w.inputEl.autoplay = true;
     w.inputEl.loop = true;
     w.inputEl.controls = false;
+    w.inputEl.addEventListener("loadedmetadata", function (e) {
+      w.inputRatio = this.videoWidth / this.videoHeight;
+      callback?.();
+    }, false);
+  } else {
+    w.inputEl.onload = function () {
+      w.inputRatio = w.inputEl.naturalWidth / w.inputEl.naturalHeight;
+      callback?.();
+    };
   }
-  w.inputEl.onload = function () {
-    w.inputRatio = w.inputEl.naturalWidth / w.inputEl.naturalHeight;
-    callback?.();
-  };
   document.body.appendChild(w.inputEl);
   return w;
 };
