@@ -5,7 +5,7 @@ from einops import rearrange
 
 import comfy.ldm.modules.diffusionmodules.openaimodel as openaimodel
 import comfy.model_management as model_management
-from comfy.model_base import BaseModel
+from comfy.model_base import BaseModel, model_sampling
 from comfy.ldm.modules.attention import SpatialTransformer
 from nodes import KSampler
 
@@ -16,6 +16,11 @@ from .sliding_context_sampling import SlidingContext, inject_sampling_function, 
 
 
 SLIDING_CONTEXT_LENGTH = 16
+
+
+class ModelSamplingConfig:
+    def __init__(self, beta_schedule: str):
+        self.beta_schedule = beta_schedule
 
 
 def forward_timestep_embed(ts, x, emb, context=None, transformer_options={}, output_shape=None):
@@ -181,32 +186,17 @@ class AnimateDiffSampler(KSampler):
 
     def __init__(self) -> None:
         super().__init__()
-        self.prev_beta = None
-        self.prev_linear_start = None
-        self.prev_linear_end = None
+        self.model_sampling = None
 
     def override_beta_schedule(self, model: BaseModel):
-        self.prev_beta = model.get_buffer("betas").cpu().clone().detach()
-        self.prev_linear_start = model.linear_start
-        self.prev_linear_end = model.linear_end
-        model.register_schedule(
-            given_betas=None,
-            beta_schedule="sqrt_linear",
-            timesteps=1000,
-            linear_start=0.00085,
-            linear_end=0.012,
-            cosine_s=8e-3,
+        self.model_sampling = model.model_sampling
+        model.model_sampling = model_sampling(
+            ModelSamplingConfig(beta_schedule="sqrt_linear"), model_type=model.model_type
         )
 
     def restore_beta_schedule(self, model: BaseModel):
-        model.register_schedule(
-            given_betas=self.prev_beta,
-            linear_start=self.prev_linear_start,
-            linear_end=self.prev_linear_end,
-        )
-        self.prev_beta = None
-        self.prev_linear_start = None
-        self.prev_linear_end = None
+        model.model_sampling = self.model_sampling
+        self.model_sampling = None
 
     def inject_motion_module(self, model, motion_module: MotionWrapper, inject_method: str, frame_number: int):
         model = model.clone()

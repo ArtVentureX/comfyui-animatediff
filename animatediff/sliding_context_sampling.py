@@ -202,10 +202,10 @@ def __sliding_sample_factory(ctx: SlidingContext):
 
         def calc_cond_uncond_batch(model_function, cond, uncond, x_in, timestep, max_total_area, model_options):
             out_cond = torch.zeros_like(x_in)
-            out_count = torch.ones_like(x_in) / 100000.0
+            out_count = torch.ones_like(x_in) * 1e-37
 
             out_uncond = torch.zeros_like(x_in)
-            out_uncond_count = torch.ones_like(x_in) / 100000.0
+            out_uncond_count = torch.ones_like(x_in) * 1e-37
 
             COND = 0
             UNCOND = 1
@@ -316,7 +316,6 @@ def __sliding_sample_factory(ctx: SlidingContext):
             del out_count
             out_uncond /= out_uncond_count
             del out_uncond_count
-
             return out_cond, out_uncond
 
         # sliding_calc_cond_uncond_batch inspired by ashen's initial hack for 16-frame sliding context:
