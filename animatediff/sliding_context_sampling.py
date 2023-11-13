@@ -77,7 +77,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
 
         return orig_comfy_sample(model, *args, **kwargs, callback=callback)
 
-    def sampling_function(model_function, x, timestep, uncond, cond, cond_scale, model_options={}, seed=None):
+    def sampling_function(model, x, timestep, uncond, cond, cond_scale, model_options={}, seed=None):
         def get_area_and_mult(conds, x_in, timestep_in):
             area = (x_in.shape[2], x_in.shape[3], 0, 0)
             strength = 1.0
@@ -200,7 +200,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
 
             return out
 
-        def calc_cond_uncond_batch(model_function, cond, uncond, x_in, timestep, max_total_area, model_options):
+        def calc_cond_uncond_batch(model, cond, uncond, x_in, timestep, model_options):
             out_cond = torch.zeros_like(x_in)
             out_count = torch.ones_like(x_in) * 1e-37
 
@@ -236,9 +236,11 @@ def __sliding_sample_factory(ctx: SlidingContext):
                 to_batch_temp.reverse()
                 to_batch = to_batch_temp[:1]
 
+                free_memory = model_management.get_free_memory(x_in.device)
                 for i in range(1, len(to_batch_temp) + 1):
                     batch_amount = to_batch_temp[: len(to_batch_temp) // i]
-                    if len(batch_amount) * first_shape[0] * first_shape[2] * first_shape[3] < max_total_area:
+                    input_shape = [len(batch_amount) * first_shape[0]] + list(first_shape)[1:]
+                    if model.memory_required(input_shape) < free_memory:
                         to_batch = batch_amount
                         break
 
@@ -288,11 +290,11 @@ def __sliding_sample_factory(ctx: SlidingContext):
 
                 if "model_function_wrapper" in model_options:
                     output = model_options["model_function_wrapper"](
-                        model_function,
+                        model.apply_model,
                         {"input": input_x, "timestep": timestep_, "c": c, "cond_or_uncond": cond_or_uncond},
                     ).chunk(batch_chunks)
                 else:
-                    output = model_function(input_x, timestep_, **c).chunk(batch_chunks)
+                    output = model.apply_model(input_x, timestep_, **c).chunk(batch_chunks)
                 del input_x
 
                 for o in range(batch_chunks):
@@ -320,9 +322,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
 
         # sliding_calc_cond_uncond_batch inspired by ashen's initial hack for 16-frame sliding context:
         # https://github.com/comfyanonymous/ComfyUI/compare/master...ashen-sensored:ComfyUI:master
-        def sliding_calc_cond_uncond_batch(
-            model_function, cond, uncond, x_in, timestep, max_total_area, model_options
-        ):
+        def sliding_calc_cond_uncond_batch(model, cond, uncond, x_in, timestep, max_total_area, model_options):
             # figure out how input is split
             axes_factor = x.size(0) // ctx.video_length
 
@@ -385,7 +385,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
                 sub_uncond = get_resized_cond(uncond, full_idxs) if uncond is not None else None
 
                 sub_cond_out, sub_uncond_out = calc_cond_uncond_batch(
-                    model_function,
+                    model,
                     sub_cond,
                     sub_uncond,
                     sub_x,
@@ -403,17 +403,21 @@ def __sliding_sample_factory(ctx: SlidingContext):
             uncond_final /= out_count_final
             return cond_final, uncond_final
 
-        max_total_area = model_management.maximum_batch_area()
         if math.isclose(cond_scale, 1.0):
             uncond = None
 
-        cond, uncond = sliding_calc_cond_uncond_batch(
-            model_function, cond, uncond, x, timestep, max_total_area, model_options
-        )
+        cond, uncond = sliding_calc_cond_uncond_batch(model, cond, uncond, x, timestep, model_options)
 
         if "sampler_cfg_function" in model_options:
-            args = {"cond": cond, "uncond": uncond, "cond_scale": cond_scale, "timestep": timestep}
-            return model_options["sampler_cfg_function"](args)
+            args = {
+                "cond": x - cond,
+                "uncond": x - uncond,
+                "cond_scale": cond_scale,
+                "timestep": timestep,
+                "input": x,
+                "sigma": timestep,
+            }
+            return x - model_options["sampler_cfg_function"](args)
         else:
             return uncond + (cond - uncond) * cond_scale
 
