@@ -98,18 +98,20 @@ export const CreatePreviewElement = (name, val, format, callback) => {
 const videoPreview = {
   name: "AnimateDiff.VideoPreview",
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
-    const onExecuted = nodeType.prototype.onExecuted;
-    if (nodeData.name === "AnimateDiffCombine") {
-      nodeType.prototype.onExecuted = function (message) {
-        const r = onExecuted ? onExecuted.apply(this, message) : undefined;
-
-        if (message?.videos) {
-          this.videos = message.videos;
-        }
-
-        return r;
-      };
+    if (nodeData.name !== "AnimateDiffCombine") {
+      return
     }
+
+    const onExecuted = nodeType.prototype.onExecuted;
+    nodeType.prototype.onExecuted = function (message) {
+      const r = onExecuted ? onExecuted.apply(this, message) : undefined;
+
+      if (message?.videos) {
+        this.videos = message.videos;
+      }
+
+      return r;
+    };
 
     const onDrawBackground = nodeType.prototype.onDrawBackground;
     nodeType.prototype.onDrawBackground = function (ctx) {
