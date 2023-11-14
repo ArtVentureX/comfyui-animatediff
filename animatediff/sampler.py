@@ -54,7 +54,6 @@ def groupnorm_mm_factory(video_length: int):
 
 
 orig_forward_timestep_embed = openaimodel.forward_timestep_embed
-orig_maximum_batch_area = model_management.maximum_batch_area
 orig_groupnorm_forward = torch.nn.GroupNorm.forward
 
 
