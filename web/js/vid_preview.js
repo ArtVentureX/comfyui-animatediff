@@ -99,15 +99,17 @@ const videoPreview = {
   name: "AnimateDiff.VideoPreview",
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
     const onExecuted = nodeType.prototype.onExecuted;
-    nodeType.prototype.onExecuted = function (message) {
-      const r = onExecuted ? onExecuted.apply(this, message) : undefined;
+    if (nodeData.name === "AnimateDiffCombine") {
+      nodeType.prototype.onExecuted = function (message) {
+        const r = onExecuted ? onExecuted.apply(this, message) : undefined;
 
-      if (message?.videos) {
-        this.videos = message.videos;
-      }
+        if (message?.videos) {
+          this.videos = message.videos;
+        }
 
-      return r;
-    };
+        return r;
+      };
+    }
 
     const onDrawBackground = nodeType.prototype.onDrawBackground;
     nodeType.prototype.onDrawBackground = function (ctx) {
