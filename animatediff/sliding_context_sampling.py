@@ -322,7 +322,7 @@ def __sliding_sample_factory(ctx: SlidingContext):
 
         # sliding_calc_cond_uncond_batch inspired by ashen's initial hack for 16-frame sliding context:
         # https://github.com/comfyanonymous/ComfyUI/compare/master...ashen-sensored:ComfyUI:master
-        def sliding_calc_cond_uncond_batch(model, cond, uncond, x_in, timestep, max_total_area, model_options):
+        def sliding_calc_cond_uncond_batch(model, cond, uncond, x_in, timestep, model_options):
             # figure out how input is split
             axes_factor = x.size(0) // ctx.video_length
 
@@ -390,7 +390,6 @@ def __sliding_sample_factory(ctx: SlidingContext):
                     sub_uncond,
                     sub_x,
                     sub_timestep,
-                    max_total_area,
                     model_options,
                 )
 
