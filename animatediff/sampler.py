@@ -20,7 +20,8 @@ SLIDING_CONTEXT_LENGTH = 16
 
 class ModelSamplingConfig:
     def __init__(self, beta_schedule: str):
-        self.beta_schedule = beta_schedule
+        self.sampling_settings = {}
+        self.sampling_settings['beta_schedule'] = beta_schedule
 
 
 def forward_timestep_embed(ts, x, emb, context=None, transformer_options={}, output_shape=None):
