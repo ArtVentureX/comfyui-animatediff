@@ -118,7 +118,7 @@ export const addVideoPreview = (nodeType) => {
     };
 
     this.setPreviewsrc = (params) => {
-      previewWidget._value.params = params;
+      previewWidget._value = params;
       this._setPreviewsrc(params);
     };
     this._setPreviewsrc = function (params) {
