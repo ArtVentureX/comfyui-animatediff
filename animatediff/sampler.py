@@ -4,9 +4,7 @@ from torch.nn.functional import group_norm
 from einops import rearrange
 
 import comfy.ldm.modules.diffusionmodules.openaimodel as openaimodel
-import comfy.model_management as model_management
 from comfy.model_base import BaseModel, model_sampling
-from comfy.ldm.modules.attention import SpatialTransformer
 from nodes import KSampler
 
 from .logger import logger
@@ -21,22 +19,16 @@ SLIDING_CONTEXT_LENGTH = 16
 class ModelSamplingConfig:
     def __init__(self, beta_schedule: str):
         self.sampling_settings = {}
-        self.sampling_settings['beta_schedule'] = beta_schedule
+        self.sampling_settings["beta_schedule"] = beta_schedule
 
 
-def forward_timestep_embed(ts, x, emb, context=None, transformer_options={}, output_shape=None):
+def forward_timestep_embed(ts, x, emb, context=None, *args, **kwargs):
     for layer in ts:
-        if isinstance(layer, openaimodel.TimestepBlock):
-            x = layer(x, emb)
-        elif isinstance(layer, VanillaTemporalModule):
+        if isinstance(layer, VanillaTemporalModule):
             x = layer(x, context)
-        elif isinstance(layer, SpatialTransformer):
-            x = layer(x, context, transformer_options)
-            transformer_options["current_index"] += 1
-        elif isinstance(layer, openaimodel.Upsample):
-            x = layer(x, output_shape=output_shape)
         else:
-            x = layer(x)
+            x = orig_forward_timestep_embed([layer], x, emb, context, *args, **kwargs)
+
     return x
 
 
