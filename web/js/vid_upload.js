@@ -4,7 +4,6 @@ import { api } from "../../../scripts/api.js";
 import {
   chainCallback,
   addVideoPreview,
-  addVideoPreviewOptions,
 } from "./vid_preview.js";
 
 async function uploadFile(file) {
@@ -32,8 +31,14 @@ async function uploadFile(file) {
   }
 }
 
-function addUploadWidget(nodeType, callback) {
+function addUploadWidget(nodeType, widgetName) {
   chainCallback(nodeType.prototype, "onNodeCreated", function () {
+    const pathWidget = this.widgets.find((w) => w.name === widgetName);
+    if (pathWidget.element) {
+      pathWidget.options.getMinHeight = () => 50;
+      pathWidget.options.getMaxHeight = () => 150;
+    }
+
     const fileInput = document.createElement("input");
     chainCallback(this, "onRemoved", () => {
       fileInput?.remove();
@@ -52,7 +57,9 @@ function addUploadWidget(nodeType, callback) {
           }
 
           fileInput.value = "";
-          callback.call(this, params)
+          const filename = [params.subfolder, params.name || params.filename].filter(Boolean).join('/')
+          pathWidget.value = filename;
+          pathWidget.options.values.push(filename);
         }
       },
     });
@@ -76,42 +83,8 @@ app.registerExtension({
   name: "AnimateDiff.UploadVideo",
   async beforeRegisterNodeDef(nodeType, nodeData, app) {
     if (nodeData?.input?.required?.video?.[1]?.video_upload === true) {
-      addUploadWidget(nodeType, function (params) {
-        const pathWidget = this.widgets.find((w) => w.name === 'video');
-        const filename = [params.subfolder, params.name || params.filename].filter(Boolean).join('/')
-        pathWidget.value = filename;
-        pathWidget.options.values.push(filename);
-        this.setPreviewsrc(params);
-      });
-      addVideoPreview(nodeType);
-      addVideoPreviewOptions(nodeType);
-      chainCallback(nodeType.prototype, "onNodeCreated", function () {
-        const pathWidget = this.widgets.find((w) => w.name === "video");
-        pathWidget._value = pathWidget.value;
-        Object.defineProperty(pathWidget, "value", {
-          set: (value) => {
-            pathWidget._value = value;
-            if (!value) {
-              return
-            }
-
-            const parts = value.split("/")
-            const filename = parts.pop()
-            const subfolder = parts.join("/")
-            const extension = filename.split(".").pop();
-            let format = "video"
-            if (["gif", "webp", "avif"].includes(extension)) {
-              format = "image"
-            }
-            this.setPreviewsrc({ filename, subfolder, type: "input", format: format });
-          },
-          get: () => {
-            return pathWidget._value;
-          }
-        });
-        //Set value to ensure preview displays on initial add.
-        pathWidget.value = pathWidget._value;
-      });
+      addUploadWidget(nodeType, 'video');
+      addVideoPreview(nodeType, { comboWidget: 'video' });
     }
   },
 });
