@@ -142,14 +142,12 @@ def uniform_constant(
             # yield if not skipped
             yield to_yield
 
-
 def get_context_scheduler(name: str) -> Callable:
-    match name:
-        case ContextSchedules.UNIFORM:
-            return uniform
-        case ContextSchedules.UNIFORM_CONSTANT:
-            return uniform_constant
-        case ContextSchedules.UNIFORM_V2:
-            return uniform_v2
-        case _:
-            raise ValueError(f"Unknown context_overlap policy {name}")
+    if name == ContextSchedules.UNIFORM:
+        return uniform
+    elif name == ContextSchedules.UNIFORM_CONSTANT:
+        return uniform_constant
+    elif name == ContextSchedules.UNIFORM_V2:
+        return uniform_v2
+    else:
+        raise ValueError(f"Unknown context_overlap policy {name}")
